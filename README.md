@@ -1,102 +1,53 @@
 # Operations Hub
 
-A small web portal that puts three existing, independently deployed Excel tools behind one sidebar and header.
+One page that puts three existing Excel tools behind a single sidebar and header.
 
-| Module | Route | Embedded site |
+| Module | Address in the hub | Embedded site |
 | --- | --- | --- |
-| MRS Pipeline | `/mrs` | https://meetfluorine.github.io/mrs_pipeline/ |
-| Issuance / FE Summary | `/issuance` | https://meetfluorine.github.io/fe-summary/ |
-| Substore Stock | `/substore-stock` | https://meetfluorine.github.io/stock-aging/ |
+| MRS Pipeline | `#/mrs` | https://meetfluorine.github.io/mrs_pipeline/ |
+| Issuance / FE Summary | `#/issuance` | https://meetfluorine.github.io/fe-summary/ |
+| Substore Stock | `#/substore-stock` | https://meetfluorine.github.io/stock-aging/ |
 
-The hub is a shell only. It does not contain, copy or modify any of the three tools, and it has no backend, database, login or file storage. Each tool keeps its own repository and its own deployment.
+This is plain HTML, CSS and JavaScript. There is nothing to install, no build step and no dependencies. The files in this repository are exactly what GitHub Pages serves.
 
-Stack: React, Vite, TypeScript, Tailwind CSS. No router or UI library is used.
-
-## Run locally
-
-```bash
-npm install
-npm run dev
+```
+index.html          the page
+css/styles.css      all styling, light and dark themes
+js/modules.js       the list of tools (edit this to add or change one)
+js/app.js           navigation, frames, themes, dashboard, Privacy and Terms pages
+favicon.svg
 ```
 
-Open the address Vite prints. Because the production base path is `/operations-hub/`, the local address is `http://localhost:5173/operations-hub/`.
+## Deploy on GitHub Pages
 
-To test the production build:
+1. Put these files at the top level of the repository (so `index.html` is in the root, not inside a folder).
+2. Open **Settings > Pages**. Under **Build and deployment**, set **Source** to **Deploy from a branch**, choose branch `main` and folder `/ (root)`, then save.
+3. Wait a minute. The site is live at `https://meetfluorine.github.io/<repository-name>/`.
 
-```bash
-npm run build
-npm run preview
-```
+If the repository earlier used the React version, delete its old files first: `src/`, `public/`, `scripts/`, `package.json`, `package-lock.json`, `vite.config.ts`, `tsconfig.json` and the folder `.github/workflows/`. Leaving the old workflow in place makes GitHub try to build a project that no longer exists, and it will fail.
 
-## Deploy to GitHub Pages
+To try it on your own computer, double-click `index.html`. No server is needed.
 
-1. Create an empty repository named `operations-hub` on GitHub, under the same account that owns the other three (`MeetFluorine`).
-2. Push this project to its `main` branch.
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/MeetFluorine/operations-hub.git
-   git push -u origin main
-   ```
-3. In the repository, open **Settings > Pages** and set **Source** to **GitHub Actions**.
-4. The workflow in `.github/workflows/deploy.yml` runs on every push to `main` (and can be started by hand from the Actions tab). When it finishes, the site is live at:
+## Adding or changing an application
 
-   `https://meetfluorine.github.io/operations-hub/`
+Open `js/modules.js`, copy one block in the list, and change its values. The sidebar item, dashboard card, Quick Access row, address and page title are all generated from that list. The comment at the top of the file explains each field.
 
-Nothing needs to change in the three existing repositories or their workflows.
+## How it behaves
 
-### If the repository has a different name
+- **Addresses.** The hub uses the part of the address after `#` (for example `.../#/mrs`). That means refreshing a module, bookmarking it or sharing the link always works, and no GitHub Pages 404 setup or base path is involved. It also works under any repository name or custom domain.
+- **Switching modules.** Each tool is loaded in an iframe the first time you open it and then kept in the page, only hidden, when you switch away. Whatever you loaded in a tool is still there when you return, until you refresh the hub. Refreshing reloads every tool from scratch.
+- **Theme and sidebar.** The theme and the collapsed state of the sidebar are saved in the browser's local storage under the keys `oh-theme` and `oh-sidebar-collapsed`.
 
-The base path must match the repository name. Either edit the default in `vite.config.ts` (`'/operations-hub/'`) or build with `VITE_BASE=/your-repo-name/`.
+## Limitations
 
-### Custom domain
-
-1. Add a file `public/CNAME` containing only the domain, for example `hub.example.com`.
-2. Set `VITE_BASE=/` for the build (in `deploy.yml`, add `env: { VITE_BASE: / }` to the build step).
-3. Create the DNS record your registrar requires and enter the domain under **Settings > Pages > Custom domain**. Enable **Enforce HTTPS** once the certificate is issued.
-
-## Adding another application
-
-Open `src/modules.ts` and add one entry to the `MODULES` array:
-
-```ts
-{
-  id: 'payroll',                 // also add 'payroll' to the ModuleId type
-  route: '/payroll',
-  navLabel: 'Payroll',
-  title: 'Payroll Checker',
-  description: 'One or two sentences for the dashboard card.',
-  quickAccessLabel: 'Open Payroll Checker',
-  url: 'https://example.github.io/payroll/',
-  accent: 'blue',                // 'blue' | 'green' | 'orange'
-  icon: 'stock',                 // 'mrs' | 'issuance' | 'stock'
-}
-```
-
-The sidebar item, dashboard card, Quick Access row, route and page title are all generated from that list. To use a new accent colour or icon, add it to `ACCENTS` in `src/components/Dashboard.tsx` and to `src/components/Icons.tsx`.
-
-## How it works
-
-- **Routing.** The hub reads and writes the browser path with the History API (`/`, `/mrs`, `/issuance`, `/substore-stock`, plus `/privacy` and `/terms`). Back and forward buttons work.
-- **Refreshing a route on GitHub Pages.** Pages only serves files that exist. After the build, `scripts/postbuild.mjs` copies `index.html` to `404.html`, so a refresh of `/operations-hub/mrs` loads the app and the route is resolved in the browser. Side effect: Pages answers those refreshes with an HTTP 404 status even though the page renders correctly. Browsers do not care, but search engines and link checkers would.
-- **Switching modules.** Each module is an `<iframe>` created the first time it is opened. Switching to another module hides the frame instead of destroying it, so whatever you loaded in a tool is still there when you come back. This lasts until the hub page is refreshed or the tab is closed; a refresh reloads every tool from scratch. Use the **Reload** button in the module toolbar to reload only the current tool.
-- **Theme and sidebar.** The theme and the collapsed state of the sidebar are saved in `localStorage` under the keys `oh-theme` and `oh-sidebar-collapsed`.
-
-## Compatibility and limitations
-
-Read this before relying on the embedding.
-
-1. **Embedding was not verified in a real browser.** While the project was prepared, the response headers of the three live sites could not be fetched, and no browser was available to load them in a frame. The three pages are static single-file sites on GitHub Pages. GitHub Pages does not normally send `X-Frame-Options` or a `frame-ancestors` rule, so embedding is expected to work, but the first load of each module after deployment is the real test. Do that before announcing the hub.
-2. **If a site refuses embedding,** the browser shows its own "refused to connect" message inside the frame. The cause is a response header on that site (`X-Frame-Options` or `Content-Security-Policy: frame-ancestors`). The hub does not and must not work around it. Practical options: serve the tool from a host where you control the headers, merge the tool into the hub as a route (this means copying its code), or open it in a separate tab.
-3. **The hub cannot detect errors inside a frame.** The "finished loading" status means the browser fired the iframe `load` event. Browsers block one site from inspecting another site's frame content, so the hub cannot distinguish a working tool from an error page or from a script error inside the tool. After 15 seconds without a load event, the hub shows a help panel. That panel includes an explicit, optional **Open in a new tab** button; the hub never switches to a new tab by itself.
-4. **All four apps share one browser origin.** The hub and the three tools are all served from `meetfluorine.github.io`, so they share the same `localStorage`. The hub only uses keys starting with `oh-`. If a tool stores data under a very generic key, another tool on the same origin could in principle read or overwrite it. This is already true today when the tools are opened directly. The hub does not read from or write into the frames.
-5. **Files are not handled by the hub.** Uploads and downloads happen inside each tool exactly as before. The frame has no `sandbox` attribute so that file pickers and downloads behave normally, which is acceptable because the frames only load the three fixed addresses in `modules.ts`.
-6. **Mobile.** The three tools were designed as standalone pages. The hub gives them the full workspace, but how well each one fits a phone screen depends on the tool.
+1. **Embedding must be checked on the live site.** The three tools are static pages on GitHub Pages, which does not normally block embedding, but this has not been confirmed in a browser. Open each module once after deploying.
+2. **If a site refuses to be embedded,** the browser shows its own "refused to connect" message inside the frame. The cause is a response header on that site (`X-Frame-Options` or `Content-Security-Policy: frame-ancestors`). The hub does not work around it. Practical options: host the tool where you control the headers, or merge the tool into the hub as its own page.
+3. **The hub cannot see errors inside a frame.** "Finished loading" means the browser fired the iframe load event. Browsers stop one site from inspecting another site's frame, so the hub cannot tell a working tool from an error page. After 15 seconds without a load event, a help panel appears. It includes an optional **Open in a new tab** button; the hub never opens a new tab on its own.
+4. **All four apps share one browser origin.** The hub and the three tools are all served from `meetfluorine.github.io`, so they share local storage. The hub only uses keys that start with `oh-`. This is already true today when the tools are opened directly.
+5. **Mobile.** The tools were designed as standalone pages. The hub gives them the whole workspace, but how well each one fits a phone screen depends on the tool.
 
 ## Before announcing the site
 
-- [ ] Open each module once on the deployed site and confirm it renders inside the frame.
-- [ ] Connect a custom domain (see above) if you want one.
-- [ ] Have someone read the Privacy Policy and Terms pages (`src/components/LegalPage.tsx`). They are plain-language texts written for this setup, not legal advice, and they point to the GitHub repository as the contact.
+- Open each module once on the live site and confirm it appears in the frame.
+- Connect a custom domain if you want one: add a file named `CNAME` containing only the domain name to the repository root, create the DNS record your registrar asks for, enter the domain in **Settings > Pages**, and turn on **Enforce HTTPS** once it is available.
+- Have someone read the Privacy Policy and Terms pages (in `js/app.js`). They are plain-language texts written for this setup, not legal advice.

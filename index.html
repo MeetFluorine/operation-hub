@@ -1,21 +1,62 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Operations Hub</title>
-    <meta name="description" content="One workspace for the MRS, Issuance and Substore Stock Excel tools." />
-    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
-    <script>
-      try {
-        var saved = localStorage.getItem('oh-theme');
-        var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', dark);
-      } catch (e) {}
-    </script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Operations Hub</title>
+  <meta name="description" content="One workspace for the MRS, Issuance and Substore Stock Excel tools.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <script>
+    /* Apply the saved theme before the page paints, to avoid a flash. */
+    try {
+      var saved = localStorage.getItem('oh-theme');
+      var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (dark) document.documentElement.classList.add('dark');
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app no-anim" id="app">
+    <header class="header">
+      <button type="button" class="icon-btn only-mobile" id="menu-btn" data-icon="menu"
+              aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation"></button>
+      <button type="button" class="icon-btn only-desktop" id="collapse-btn" data-icon="menu"
+              aria-controls="sidebar" aria-expanded="true" aria-label="Collapse sidebar"></button>
+
+      <a class="brand" href="#/">
+        <span class="brand-mark" data-icon="layers" data-size="32"></span>
+        <span class="brand-text">
+          <span class="brand-name">Operations Hub</span>
+          <span class="brand-sub">Your Excel Tools in One Place</span>
+        </span>
+      </a>
+
+      <div class="header-right">
+        <button type="button" class="icon-btn" id="theme-btn"></button>
+      </div>
+    </header>
+
+    <div class="body">
+      <div class="scrim" id="scrim" hidden></div>
+      <aside class="sidebar" id="sidebar" aria-label="Primary">
+        <nav class="nav" id="nav" aria-label="Modules"></nav>
+        <div class="sidebar-footer">
+          <a href="#/privacy">Privacy</a>
+          <a href="#/terms">Terms</a>
+        </div>
+      </aside>
+      <main class="workspace" id="workspace">
+        <div class="page" id="page"></div>
+      </main>
+    </div>
+  </div>
+
+  <noscript>
+    <p style="padding:24px;font-family:sans-serif">Operations Hub needs JavaScript to load its modules.</p>
+  </noscript>
+
+  <script src="js/modules.js"></script>
+  <script src="js/app.js"></script>
+</body>
 </html>
