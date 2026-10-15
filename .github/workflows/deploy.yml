@@ -27,9 +27,11 @@ jobs:
 
       - run: npm ci
 
-      # The base path defaults to /operations-hub/ (see vite.config.ts).
-      # For a custom domain served at the root, add:  env: { VITE_BASE: / }
+      # The base path is taken from the repository name, so the site works whatever the repo is called.
+      # For a custom domain served at the root, change VITE_BASE to /
       - run: npm run build
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
 
       - uses: actions/upload-pages-artifact@v3
         with:
