@@ -9,8 +9,8 @@
  *   description      one or two sentences for the dashboard card
  *   quickAccessLabel short line in the Quick Access row
  *   url              the existing deployed site to show in the frame
- *   accent           'blue', 'green' or 'orange'
- *   icon             'mrs', 'issuance' or 'stock'
+ *   accent           'blue', 'green', 'orange' or 'teal'
+ *   icon             'mrs', 'issuance', 'stock' or 'supply'
  */
 window.OPS_MODULES = [
   {
@@ -45,5 +45,16 @@ window.OPS_MODULES = [
     url: 'https://meetfluorine.github.io/stock-aging/',
     accent: 'orange',
     icon: 'stock'
+  },
+  {
+    id: 'asn-supply',
+    route: '/asn-supply',
+    navLabel: 'ASN Supply',
+    title: 'ASN Supply',
+    description: 'Filter and date-format a MultiUOMSerialReport file, then download the ASN pendency as Excel with optional By ASN and By Client sheets.',
+    quickAccessLabel: 'Open ASN Pendency',
+    url: 'https://meetfluorine.github.io/asn-pipeline/',
+    accent: 'teal',
+    icon: 'supply'
   }
 ];

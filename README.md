@@ -1,12 +1,13 @@
 # Operations Hub
 
-One page that puts three existing Excel tools behind a single sidebar and header.
+One page that puts four existing Excel tools behind a single sidebar and header.
 
 | Module | Address in the hub | Embedded site |
 | --- | --- | --- |
 | MRS Pipeline | `#/mrs` | https://meetfluorine.github.io/mrs_pipeline/ |
 | Issuance / FE Summary | `#/issuance` | https://meetfluorine.github.io/fe-summary/ |
 | Substore Stock | `#/substore-stock` | https://meetfluorine.github.io/stock-aging/ |
+| ASN Supply | `#/asn-supply` | https://meetfluorine.github.io/asn-pipeline/ |
 
 This is plain HTML, CSS and JavaScript. There is nothing to install, no build step and no dependencies. The files in this repository are exactly what GitHub Pages serves.
 
@@ -40,10 +41,10 @@ Open `js/modules.js`, copy one block in the list, and change its values. The sid
 
 ## Limitations
 
-1. **Embedding must be checked on the live site.** The three tools are static pages on GitHub Pages, which does not normally block embedding, but this has not been confirmed in a browser. Open each module once after deploying.
+1. **Embedding must be checked on the live site.** The tools are static pages on GitHub Pages, which does not normally block embedding, but this has not been confirmed in a browser. Open each module once after deploying.
 2. **If a site refuses to be embedded,** the browser shows its own "refused to connect" message inside the frame. The cause is a response header on that site (`X-Frame-Options` or `Content-Security-Policy: frame-ancestors`). The hub does not work around it. Practical options: host the tool where you control the headers, or merge the tool into the hub as its own page.
 3. **The hub cannot see errors inside a frame.** "Finished loading" means the browser fired the iframe load event. Browsers stop one site from inspecting another site's frame, so the hub cannot tell a working tool from an error page. After 15 seconds without a load event, a help panel appears. It includes an optional **Open in a new tab** button; the hub never opens a new tab on its own.
-4. **All four apps share one browser origin.** The hub and the three tools are all served from `meetfluorine.github.io`, so they share local storage. The hub only uses keys that start with `oh-`. This is already true today when the tools are opened directly.
+4. **All the apps share one browser origin.** The hub and the four tools are all served from `meetfluorine.github.io`, so they share local storage. The hub only uses keys that start with `oh-`. This is already true today when the tools are opened directly.
 5. **Mobile.** The tools were designed as standalone pages. The hub gives them the whole workspace, but how well each one fits a phone screen depends on the tool.
 
 ## Before announcing the site

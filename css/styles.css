@@ -220,6 +220,12 @@ html.dark .eyebrow { color: #60a5fa; }
 .tile-blue { background: #eff6ff; color: #1d4ed8; }
 .tile-green { background: #ecfdf5; color: #047857; }
 .tile-orange { background: #fff7ed; color: #c2410c; }
+.tile-teal { background: #f0fdfa; color: #0f766e; }
+html.dark .tile-teal { background: rgba(20, 184, 166, 0.15); color: #5eead4; }
+.arrow-teal { color: #0f766e; }
+html.dark .arrow-teal { color: #5eead4; }
+.btn-teal { background: #0f766e; }
+.btn-teal:hover { background: #115e59; }
 html.dark .tile-blue { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
 html.dark .tile-green { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
 html.dark .tile-orange { background: rgba(249, 115, 22, 0.15); color: #fdba74; }
@@ -282,7 +288,11 @@ html.dark .arrow-orange { color: #fdba74; }
 }
 
 @media (min-width: 768px) {
-  .cards, .quick-grid { grid-template-columns: repeat(3, 1fr); }
+  .cards, .quick-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1280px) {
+  .cards, .quick-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* ---------- module frame ---------- */

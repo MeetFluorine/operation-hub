@@ -19,6 +19,7 @@
     mrs: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
     issuance: '<path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5"/><path d="M12 12v9"/>',
     stock: '<path d="M5 20V10M12 20V4M19 20v-7"/>',
+    supply: '<path d="M2 6h12v10H2z"/><path d="M14 9h4l4 4v3h-8"/><circle cx="6.5" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/>',
     menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
@@ -300,7 +301,7 @@
   function privacyView() {
     return legalShell('Privacy Policy',
       '<h2>What Operations Hub is</h2>' +
-      '<p>Operations Hub is a navigation shell. It shows three separate Excel tools (MRS Pipeline, Issuance / FE Summary and Substore Stock) inside one page. The hub itself has no accounts, no database and no server of its own.</p>' +
+      '<p>Operations Hub is a navigation shell. It shows four separate Excel tools (MRS Pipeline, Issuance / FE Summary, Substore Stock and ASN Supply) inside one page. The hub itself has no accounts, no database and no server of its own.</p>' +
       '<h2>Information the hub collects</h2>' +
       '<p>The hub does not collect, upload or store your files or any operational data. It does not use cookies, analytics or advertising trackers.</p>' +
       '<p>It saves two display preferences in your browser\'s local storage: your light or dark theme choice and whether the sidebar is collapsed. These stay on your device and are never sent anywhere. Clearing your browser data removes them.</p>' +
@@ -317,7 +318,7 @@
       '<h2>Acceptance</h2>' +
       '<p>By using Operations Hub you agree to these terms. If you do not agree, please do not use the site.</p>' +
       '<h2>What the service is</h2>' +
-      '<p>Operations Hub provides a single place to open three existing Excel tools. It does not process, validate or store your data itself.</p>' +
+      '<p>Operations Hub provides a single place to open four existing Excel tools. It does not process, validate or store your data itself.</p>' +
       '<h2>Your responsibilities</h2>' +
       '<ul>' +
         '<li>You are responsible for the files you load into the tools and for checking the results they produce.</li>' +
