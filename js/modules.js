@@ -8,7 +8,8 @@
  *   title            full name on the dashboard card and in the module toolbar
  *   description      one or two sentences for the dashboard card
  *   quickAccessLabel short line in the Quick Access row
- *   url              the existing deployed site to show in the frame
+ *   url              the site to show in the frame — an existing deployed site,
+ *                    or a page inside this repository (for example 'issuance-tracker.html')
  *   accent           'blue', 'green', 'orange' or 'teal'
  *   icon             'mrs', 'issuance', 'stock' or 'supply'
  */
@@ -56,5 +57,16 @@ window.OPS_MODULES = [
     url: 'https://meetfluorine.github.io/asn-pipeline/',
     accent: 'teal',
     icon: 'supply'
+  },
+  {
+    id: 'issuance-tracker',
+    route: '/issuance-tracker',
+    navLabel: 'Issuance Tracker',
+    title: 'Issuance Allocation Tracker',
+    description: 'Drop the Issuance Recover PAN India file (zip or plain xlsx) to scan, classify and pivot allocations, then download the highlighted Excel.',
+    quickAccessLabel: 'Open Issuance Tracker',
+    url: 'issuance-tracker.html',
+    accent: 'green',
+    icon: 'issuance'
   }
 ];
