@@ -301,7 +301,7 @@
   function privacyView() {
     return legalShell('Privacy Policy',
       '<h2>What Operations Hub is</h2>' +
-      '<p>Operations Hub is a navigation shell. It shows four separate Excel tools (MRS Pipeline, Issuance / FE Summary, Substore Stock and ASN Supply) inside one page. The hub itself has no accounts, no database and no server of its own.</p>' +
+      '<p>Operations Hub is a navigation shell. It shows five separate Excel tools (MRS Pipeline, Issuance / FE Summary, Substore Stock, ASN Supply and Issuance Allocation Tracker) inside one page. The hub itself has no accounts, no database and no server of its own.</p>' +
       '<h2>Information the hub collects</h2>' +
       '<p>The hub does not collect, upload or store your files or any operational data. It does not use cookies, analytics or advertising trackers.</p>' +
       '<p>It saves two display preferences in your browser\'s local storage: your light or dark theme choice and whether the sidebar is collapsed. These stay on your device and are never sent anywhere. Clearing your browser data removes them.</p>' +
@@ -318,7 +318,7 @@
       '<h2>Acceptance</h2>' +
       '<p>By using Operations Hub you agree to these terms. If you do not agree, please do not use the site.</p>' +
       '<h2>What the service is</h2>' +
-      '<p>Operations Hub provides a single place to open four existing Excel tools. It does not process, validate or store your data itself.</p>' +
+      '<p>Operations Hub provides a single place to open five existing Excel tools. It does not process, validate or store your data itself.</p>' +
       '<h2>Your responsibilities</h2>' +
       '<ul>' +
         '<li>You are responsible for the files you load into the tools and for checking the results they produce.</li>' +

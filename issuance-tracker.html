@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Issuance Allocation Tracker</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#1c2333;--mute:#667085;--line:#e3e8f2;--brand:#3b5bdb;--brand2:#edf1ff;--red:#ffc7ce;--redink:#9c0006;--grn:#c6efce;--grnink:#1e6b2e;--amber:#fff4d6}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(135deg,#25327a,#3b5bdb);color:#fff;padding:22px 28px}
+header h1{margin:0;font-size:22px;font-weight:650;letter-spacing:.2px}
+header p{margin:4px 0 0;opacity:.85;font-size:13px}
+main{max-width:1500px;margin:0 auto;padding:20px 24px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{margin:0 0 10px;font-size:15px}
+.drop{border:2px dashed #b8c4f0;background:var(--brand2);border-radius:12px;padding:30px;text-align:center;cursor:pointer;transition:.15s}
+.drop.over,.drop:hover{border-color:var(--brand);background:#e4eaff}
+.drop b{font-size:16px}.drop small{display:block;color:var(--mute);margin-top:6px}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--mute)}
+button,.btn{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;color:var(--ink)}
+button:hover{border-color:var(--brand);color:var(--brand)}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+button.primary:hover{background:#2f4ac2;color:#fff}
+button:disabled{opacity:.5;cursor:not-allowed}
+.bar{height:10px;background:#e8ecf8;border-radius:99px;overflow:hidden;margin:10px 0 6px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3b5bdb,#5c7cfa);transition:width .2s}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi span{display:block;font-size:12px;color:var(--mute)}
+.kpi b{font-size:22px;font-weight:650}
+.kpi.r b{color:var(--redink)}.kpi.g b{color:var(--grnink)}
+.warn{background:var(--amber);border:1px solid #f3d98a;border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.err{background:#ffe9ea;border:1px solid #f4b4b8;color:#8a1c22;border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:99px;padding:4px 12px;background:#fff;cursor:pointer;user-select:none}
+.chip.on{background:var(--brand2);border-color:var(--brand);color:#243b9b;font-weight:600}
+.chip input{display:none}
+select,input[type=text],input[type=number]{font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:#fff;color:var(--ink)}
+input[type=number]{width:78px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 12px}
+.tab{padding:8px 16px;cursor:pointer;border-bottom:3px solid transparent;color:var(--mute);font-weight:600}
+.tab.on{color:var(--brand);border-color:var(--brand)}
+.vt{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}
+.vt-scroll{height:62vh;min-height:320px;overflow:auto;position:relative}
+.vt table{border-collapse:separate;border-spacing:0;table-layout:fixed;width:max-content;min-width:100%}
+.vt th{position:sticky;top:0;z-index:2;background:#c5e0f2;font-weight:650;text-align:center;padding:8px 6px;border-bottom:1px solid #a9c9e0;font-size:12.5px;white-space:normal;line-height:1.2}
+.vt td{height:30px;padding:0 8px;border-bottom:1px solid #f0f2f8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.vt td.n{text-align:center}
+.vt td.r{background:var(--red)}.vt td.g{background:var(--grn)}
+.vt td.why{color:var(--redink);font-size:12px}
+.vt tr.sp td{padding:0;border:0;height:auto}
+.vt tr.tot td{font-weight:700;background:#f4f6fb;position:sticky;bottom:0}
+.note{font-size:13px}.note li{margin:4px 0}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.rules label{display:flex;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin:0 4px 0 10px;vertical-align:-1px}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>Issuance Allocation Tracker</h1>
+  <p>Drop the raw <i>Report_Issuance_Recover_PAN_India</i> zip — extract, SDFX filter, store/circle mapping, item renaming, pivot, allocation check and excess columns are done in your browser. Nothing is uploaded anywhere.</p>
+</header>
+<main>
+  <section class="card" id="uploadCard">
+    <div class="drop" id="drop"><b>Drop the raw zip here, or click to browse</b><small>.zip containing the Issuance Recover PAN India .xlsx (a plain .xlsx also works). Large files are streamed, so 500&nbsp;MB+ of sheet data is fine.</small>
+      <input type="file" id="file" accept=".zip,.xlsx" hidden></div>
+    <div class="row" style="margin-top:12px">
+      <span class="muted" id="locInfo"></span>
+      <button id="locBtn" type="button">Replace locator table…</button>
+      <input type="file" id="locFile" accept=".xlsx,.csv" hidden>
+      <span class="muted">(needs columns <i>Substore Locator</i>, <i>Circle</i>, <i>SFX Store Name</i>)</span>
+    </div>
+  </section>
+
+  <section class="card" id="progCard" hidden>
+    <div class="row" style="justify-content:space-between"><b id="progStage">Working…</b><span class="muted" id="progTime"></span></div>
+    <div class="bar"><i id="progBar"></i></div>
+    <div class="muted" id="progDetail"></div>
+  </section>
+
+  <div id="errBox" class="err" hidden></div>
+
+  <section id="results" hidden>
+    <div id="warnBox"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div class="row" style="align-items:flex-start;gap:22px">
+          <div><div class="muted" style="margin-bottom:4px">Txn_Type</div><div class="chips" id="typeChips"></div></div>
+          <div><div class="muted" style="margin-bottom:4px">Circle</div><select id="circleSel"></select></div>
+          <div><div class="muted" style="margin-bottom:4px">Show</div><select id="statusSel"><option value="all">All rows</option><option value="red">Red only</option><option value="green">Green only</option></select></div>
+          <div><div class="muted" style="margin-bottom:4px">Search</div><input type="text" id="searchBox" placeholder="store / engineer / circle"></div>
+        </div>
+        <div class="row">
+          <button id="rulesBtn" type="button">Allocation standard</button>
+          <button class="primary" id="dlBtn" type="button">⬇ Download highlighted Excel</button>
+          <button id="newBtn" type="button">New file</button>
+        </div>
+      </div>
+      <div id="rulesBox" hidden>
+        <hr>
+        <div class="rules">
+          <label>Cat 6 (m) per Modem + WiFi set <input type="number" id="r_cat" min="0"></label>
+          <label>Outdoor cable (m) per ONT <input type="number" id="r_cab" min="0"></label>
+          <label>Outdoor cable tolerance (m) <input type="number" id="r_tol" min="0"></label>
+          <label>Face Plate per ONT <input type="number" id="r_fp" min="0"></label>
+          <label>Drop Fiber acc. per ONT <input type="number" id="r_df" min="0"></label>
+        </div>
+        <p class="muted" style="margin:8px 0 0">Outdoor cable is green while it stays within <i>per-ONT standard + tolerance</i>; red only when the excess is more than the tolerance. Change a value and everything recalculates.</p>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab on" data-t="pivot">Highlighted pivot</div>
+      <div class="tab" data-t="extra">Extra issuance</div>
+      <div class="tab" data-t="stores">Store summary</div>
+      <div class="tab" data-t="notes">Rules &amp; notes</div>
+    </div>
+    <div id="tab_pivot"><div class="legend muted" style="margin-bottom:8px"><i style="background:var(--grn)"></i>within standard<i style="background:var(--red)"></i>over standard (see Flag column)</div><div class="vt" id="vtPivot"></div></div>
+    <div id="tab_extra" hidden><div class="vt" id="vtExtra"></div></div>
+    <div id="tab_stores" hidden><div class="vt" id="vtStores"></div></div>
+    <div id="tab_notes" hidden class="card note">
+      <b>What was applied to the raw file</b>
+      <ol>
+        <li>Zip extracted in memory; the sheet is streamed (never fully loaded) for speed.</li>
+        <li>Only rows whose <i>Substore_Locator</i> contains <b>SDFX</b> are kept.</li>
+        <li>Store (<i>SFX Store Name</i>) and <i>Circle</i> mapped from the locator table. Unmapped locators are shown as circle <b>UNMAPPED</b> and listed in a warning.</li>
+        <li>Where <i>Serial_Number</i> is not blank, <i>Issued_Qty</i> = 1.</li>
+        <li>Serial present: <b>iptv</b> first → then <b>ONT</b> (→ <b>Ont</b>) → <b>Modem outdoor</b> (→ <b>W-Modem outdoor</b>) → <b>WiFi router</b> (→ <b>Wifi router</b>). Serial blank: <b>Cat 6</b> cable; item code <b>B0IMPXV5</b> → <b>Face Plate</b>; monkey-bit cable / optical or drop fibre cable that is <b>outdoor</b> → <b>Outdoor cable</b>; <b>Drop Fiber accessories</b> kept.</li>
+        <li><i>Txn_Date</i> shown as dd-mmm and rolled up per day.</li>
+        <li>Pivot: rows = Txn_Date, Circle, SS, Engineer_Name; columns = Cat 6, Drop Fiber accessories, Wifi router, W-Modem outdoor, Ont, Face Plate, Outdoor cable; values = Issued_Qty.</li>
+        <li>Highlight (columns Cat 6 → Grand Total): <b>red</b> if Cat 6 &gt; 20 m per Modem+WiFi set, or Face Plate / Drop Fiber &gt; 1 per ONT, or Outdoor cable more than 90 m per ONT plus the 100 m tolerance; otherwise <b>green</b>.</li>
+        <li>Excess Cat 6 and Excess out. Cable columns hold the quantity above the standard (Excel formulas in the download).</li>
+      </ol>
+      <b>Assumptions to confirm</b>
+      <ul>
+        <li>“ontx” was read as the pivot label <b>Ont</b>.</li>
+        <li>Face-plate item code is <b>B0IMPXV5</b> (zero), matched case-insensitively and also if typed with the letter O.</li>
+        <li><i>Txn_Type</i> defaults to <b>Allocate</b> (as in your existing pivot); tick Recover to include it.</li>
+        <li>Because rows are rolled up per day, a day's ONTs, face plates and cables for one engineer are checked together.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<script id="src-fflate">!function(f){typeof module!='undefined'&&typeof exports=='object'?module.exports=f():typeof define!='undefined'&&define.amd?define(f):(typeof self!='undefined'?self:this).fflate=f()}(function(){var _e={};"use strict";_e.deflate=zt,_e.deflateSync=kt,_e.inflate=At,_e.inflateSync=Tt,_e.gzip=It,_e.compress=It,_e.gzipSync=Ut,_e.compressSync=Ut,_e.gunzip=Zt,_e.gunzipSync=qt,_e.zlib=Lt,_e.zlibSync=Bt,_e.unzlib=Nt,_e.unzlibSync=Pt,_e.gzip=It,_e.compress=It,_e.decompress=Jt,_e.decompressSync=Kt,_e.strToU8=nn,_e.strFromU8=rn,_e.zip=dn,_e.zipSync=gn,_e.unzip=zn,_e.unzipSync=kn;var t=(typeof module!='undefined'&&typeof exports=='object'?function(_f){"use strict";var e,r,t,n=";var __w=require('worker_threads');__w.parentPort.on('message',function(m){onmessage({data:m})}),postMessage=function(m,t){__w.parentPort.postMessage(m,t)},close=process.exit;self=global";try{e=require("worker_threads"),r=e.Worker,t=e.isMarkedAsUntransferable}catch(e){}exports.default=r?function(e,o,a,s,u){var i=!1,l=new r(e+n,{eval:!0}).on("error",function(e){return u(e,null)}).on("message",function(e){return u(null,e)}).on("exit",function(e){e&&!i&&u(Error("exited with code "+e),null)});return t&&(s=s.filter(function(e){return!t(e)})),l.postMessage(a,s),l.terminate=function(){return i=!0,r.prototype.terminate.call(l)},l}:function(e,r,t,n,o){setImmediate(function(){return o(Error("async operations unsupported - update to Node 12+ (or Node 10-11 with the --experimental-worker CLI flag)"),null)});var a=function(){};return{terminate:a,postMessage:a}};return _f}:function(_f){"use strict";var e={};_f.default=function(r,t,s,a,n){var o=new Worker(e[t]||(e[t]=URL.createObjectURL(new Blob([r+';addEventListener("error",function(e){e=e.error;postMessage({$e$:[e.message,e.code,e.stack]})})'],{type:"text/javascript"}))));return o.onmessage=function(e){var r=e.data,t=r.$e$;if(t){var s=Error(t[0]);s.code=t[1],s.stack=t[2],n(s,null)}else n(null,r)},o.postMessage(s,a),o};return _f})({}),n=Uint8Array,r=Uint16Array,i=Int32Array,e=new n([0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0,0,0,0]),o=new n([0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,0,0]),s=new n([16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15]),a=function(t,n){for(var e=new r(31),o=0;o<31;++o)e[o]=n+=1<<t[o-1];var s=new i(e[30]);for(o=1;o<30;++o)for(var a=e[o];a<e[o+1];++a)s[a]=a-e[o]<<5|o;return{b:e,r:s}},u=a(e,2),h=u.b,f=u.r;h[28]=258,f[258]=28;for(var c=a(o,0),l=c.b,p=c.r,v=new r(32768),d=0;d<32768;++d){var g=(43690&d)>>1|(21845&d)<<1;v[d]=((65280&(g=(61680&(g=(52428&g)>>2|(13107&g)<<2))>>4|(3855&g)<<4))>>8|(255&g)<<8)>>1}var y=function(t,n,i){for(var e=t.length,o=0,s=new r(n);o<e;++o)t[o]&&++s[t[o]-1];var a,u=new r(n);for(o=1;o<n;++o)u[o]=u[o-1]+s[o-1]<<1;if(i){a=new r(1<<n);var h=15-n;for(o=0;o<e;++o)if(t[o])for(var f=o<<4|t[o],c=n-t[o],l=u[t[o]-1]++<<c,p=l|(1<<c)-1;l<=p;++l)a[v[l]>>h]=f}else for(a=new r(e),o=0;o<e;++o)t[o]&&(a[o]=v[u[t[o]-1]++]>>15-t[o]);return a},m=new n(288);for(d=0;d<144;++d)m[d]=8;for(d=144;d<256;++d)m[d]=9;for(d=256;d<280;++d)m[d]=7;for(d=280;d<288;++d)m[d]=8;var b=new n(32);for(d=0;d<32;++d)b[d]=5;var w=y(m,9,0),x=y(m,9,1),z=y(b,5,0),k=y(b,5,1),M=function(t){for(var n=t[0],r=1;r<t.length;++r)t[r]>n&&(n=t[r]);return n},S=function(t,n,r){var i=n/8|0;return(t[i]|t[i+1]<<8)>>(7&n)&r},A=function(t,n){var r=n/8|0;return(t[r]|t[r+1]<<8|t[r+2]<<16)>>(7&n)},T=function(t){return(t+7)/8|0},D=function(t,r,i){return(null==r||r<0)&&(r=0),(null==i||i>t.length)&&(i=t.length),new n(t.subarray(r,i))};_e.FlateErrorCode={UnexpectedEOF:0,InvalidBlockType:1,InvalidLengthLiteral:2,InvalidDistance:3,StreamFinished:4,NoStreamHandler:5,InvalidHeader:6,NoCallback:7,InvalidUTF8:8,ExtraFieldTooLong:9,InvalidDate:10,FilenameTooLong:11,StreamFinishing:12,InvalidZipData:13,UnknownCompressionMethod:14};var C=["unexpected EOF","invalid block type","invalid length/literal","invalid distance","stream finished","no stream handler",,"no callback","invalid UTF-8 data","extra field too long","date not in range 1980-2099","filename too long","stream finishing","invalid zip data"],I=function(t,n,r){var i=Error(n||C[t]);if(i.code=t,Error.captureStackTrace&&Error.captureStackTrace(i,I),!r)throw i;return i},U=function(t,r,i,a){var u=t.length,f=a?a.length:0;if(!u||r.f&&!r.l)return i||new n(0);var c=!i,p=c||2!=r.i,v=r.i;c&&(i=new n(3*u));var d=function(t){var r=i.length;if(t>r){var e=new n(Math.max(2*r,t));e.set(i),i=e}},g=r.f||0,m=r.p||0,b=r.b||0,w=r.l,z=r.d,C=r.m,U=r.n,F=8*u;do{if(!w){g=S(t,m,1);var E=S(t,m+1,3);if(m+=3,!E){var Z=t[(Y=T(m)+4)-4]|t[Y-3]<<8,q=Y+Z;if(q>u){v&&I(0);break}p&&d(b+Z),i.set(t.subarray(Y,q),b),r.b=b+=Z,r.p=m=8*q,r.f=g;continue}if(1==E)w=x,z=k,C=9,U=5;else if(2==E){var O=S(t,m,31)+257,G=S(t,m+10,15)+4,L=O+S(t,m+5,31)+1;m+=14;for(var B=new n(L),H=new n(19),j=0;j<G;++j)H[s[j]]=S(t,m+3*j,7);m+=3*G;var N=M(H),P=(1<<N)-1,V=y(H,N,1);for(j=0;j<L;){var Y,J=V[S(t,m,P)];if(m+=15&J,(Y=J>>4)<16)B[j++]=Y;else{var K=0,Q=0;for(16==Y?(Q=3+S(t,m,3),m+=2,K=B[j-1]):17==Y?(Q=3+S(t,m,7),m+=3):18==Y&&(Q=11+S(t,m,127),m+=7);Q--;)B[j++]=K}}var R=B.subarray(0,O),W=B.subarray(O);C=M(R),U=M(W),w=y(R,C,1),z=y(W,U,1)}else I(1);if(m>F){v&&I(0);break}}p&&d(b+131072);for(var X=(1<<C)-1,$=(1<<U)-1,_=m;;_=m){var tt=(K=w[A(t,m)&X])>>4;if((m+=15&K)>F){v&&I(0);break}if(K||I(2),tt<256)i[b++]=tt;else{if(256==tt){_=m,w=null;break}var nt=tt-254;tt>264&&(nt=S(t,m,(1<<(et=e[j=tt-257]))-1)+h[j],m+=et);var rt=z[A(t,m)&$],it=rt>>4;if(rt||I(3),m+=15&rt,W=l[it],it>3){var et=o[it];W+=A(t,m)&(1<<et)-1,m+=et}if(m>F){v&&I(0);break}p&&d(b+131072);var ot=b+nt;if(b<W){var st=f-W,at=Math.min(W,ot);for(st+b<0&&I(3);b<at;++b)i[b]=a[st+b]}for(;b<ot;++b)i[b]=i[b-W]}}r.l=w,r.p=_,r.b=b,r.f=g,w&&(g=1,r.m=C,r.d=z,r.n=U)}while(!g);return b!=i.length&&c?D(i,0,b):i.subarray(0,b)},F=function(t,n,r){var i=n/8|0;t[i]|=r<<=7&n,t[i+1]|=r>>8},E=function(t,n,r){var i=n/8|0;t[i]|=r<<=7&n,t[i+1]|=r>>8,t[i+2]|=r>>16},Z=function(t,i){for(var e=[],o=0;o<t.length;++o)t[o]&&e.push({s:o,f:t[o]});var s=e.length,a=e.slice();if(!s)return{t:j,l:0};if(1==s){var u=new n(e[0].s+1);return u[e[0].s]=1,{t:u,l:1}}e.sort(function(t,n){return t.f-n.f}),e.push({s:-1,f:25001});var h=e[0],f=e[1],c=0,l=1,p=2;for(e[0]={s:-1,f:h.f+f.f,l:h,r:f};l!=s-1;)h=e[e[c].f<e[p].f?c++:p++],f=e[c!=l&&e[c].f<e[p].f?c++:p++],e[l++]={s:-1,f:h.f+f.f,l:h,r:f};var v=a[0].s;for(o=1;o<s;++o)a[o].s>v&&(v=a[o].s);var d=new r(v+1),g=q(e[l-1],d,0);if(g>i){o=0;var y=0,m=g-i,b=1<<m;for(a.sort(function(t,n){return d[n.s]-d[t.s]||t.f-n.f});o<s;++o){var w=a[o].s;if(!(d[w]>i))break;y+=b-(1<<g-d[w]),d[w]=i}for(y>>=m;y>0;){var x=a[o].s;d[x]<i?y-=1<<i-d[x]++-1:++o}for(;o>=0&&y;--o){var z=a[o].s;d[z]==i&&(--d[z],++y)}g=i}return{t:new n(d),l:g}},q=function(t,n,r){return-1==t.s?Math.max(q(t.l,n,r+1),q(t.r,n,r+1)):n[t.s]=r},O=function(t){for(var n=t.length;n&&!t[--n];);for(var i=new r(++n),e=0,o=t[0],s=1,a=function(t){i[e++]=t},u=1;u<=n;++u)if(t[u]==o&&u!=n)++s;else{if(!o&&s>2){for(;s>138;s-=138)a(32754);s>2&&(a(s>10?s-11<<5|28690:s-3<<5|12305),s=0)}else if(s>3){for(a(o),--s;s>6;s-=6)a(8304);s>2&&(a(s-3<<5|8208),s=0)}for(;s--;)a(o);s=1,o=t[u]}return{c:i.subarray(0,e),n:n}},G=function(t,n){for(var r=0,i=0;i<n.length;++i)r+=t[i]*n[i];return r},L=function(t,n,r){var i=r.length,e=T(n+2);t[e]=255&i,t[e+1]=i>>8,t[e+2]=255^t[e],t[e+3]=255^t[e+1];for(var o=0;o<i;++o)t[e+o+4]=r[o];return 8*(e+4+i)},B=function(t,n,i,a,u,h,f,c,l,p,v){F(n,v++,i),++u[256];for(var d=Z(u,15),g=d.t,x=d.l,k=Z(h,15),M=k.t,S=k.l,A=O(g),T=A.c,D=A.n,C=O(M),I=C.c,U=C.n,q=new r(19),B=0;B<T.length;++B)++q[31&T[B]];for(B=0;B<I.length;++B)++q[31&I[B]];for(var H=Z(q,7),j=H.t,N=H.l,P=19;P>4&&!j[s[P-1]];--P);var V,Y,J,K,Q=p+5<<3,R=G(u,m)+G(h,b)+f,W=G(u,g)+G(h,M)+f+14+3*P+G(q,j)+2*q[16]+3*q[17]+7*q[18];if(l>=0&&Q<=R&&Q<=W)return L(n,v,t.subarray(l,l+p));if(F(n,v,1+(W<R)),v+=2,W<R){V=y(g,x,0),Y=g,J=y(M,S,0),K=M;var X=y(j,N,0);for(F(n,v,D-257),F(n,v+5,U-1),F(n,v+10,P-4),v+=14,B=0;B<P;++B)F(n,v+3*B,j[s[B]]);v+=3*P;for(var $=[T,I],_=0;_<2;++_){var tt=$[_];for(B=0;B<tt.length;++B)F(n,v,X[rt=31&tt[B]]),v+=j[rt],rt>15&&(F(n,v,tt[B]>>5&127),v+=tt[B]>>12)}}else V=w,Y=m,J=z,K=b;for(B=0;B<c;++B){var nt=a[B];if(nt>255){var rt;E(n,v,V[257+(rt=nt>>18&31)]),v+=Y[rt+257],rt>7&&(F(n,v,nt>>23&31),v+=e[rt]);var it=31&nt;E(n,v,J[it]),v+=K[it],it>3&&(E(n,v,nt>>5&8191),v+=o[it])}else E(n,v,V[nt]),v+=Y[nt]}return E(n,v,V[256]),v+Y[256]},H=new i([65540,131080,131088,131104,262176,1048704,1048832,2114560,2117632]),j=new n(0),N=function(t,s,a,u,h,c){var l=c.z||t.length,v=new n(u+l+5*(1+Math.ceil(l/7e3))+h),d=v.subarray(u,v.length-h),g=c.l,y=7&(c.r||0);if(s){y&&(d[0]=c.r>>3);for(var m=H[s-1],b=m>>13,w=8191&m,x=(1<<a)-1,z=c.p||new r(32768),k=c.h||new r(x+1),M=Math.ceil(a/3),S=2*M,A=function(n){return(t[n]^t[n+1]<<M^t[n+2]<<S)&x},C=new i(25e3),I=new r(288),U=new r(32),F=0,E=0,Z=c.i||0,q=0,O=c.w||0,G=0;Z+2<l;++Z){var j=A(Z),N=32767&Z,P=k[j];if(z[N]=P,k[j]=N,O<=Z){var V=l-Z;if((F>7e3||q>24576)&&(V>423||!g)){y=B(t,d,0,C,I,U,E,q,G,Z-G,y),q=F=E=0,G=Z;for(var Y=0;Y<286;++Y)I[Y]=0;for(Y=0;Y<30;++Y)U[Y]=0}var J=2,K=0,Q=w,R=N-P&32767;if(V>2&&j==A(Z-R))for(var W=Math.min(b,V)-1,X=Math.min(32767,Z),$=Math.min(258,V);R<=X&&--Q&&N!=P;){if(t[Z+J]==t[Z+J-R]){for(var _=0;_<$&&t[Z+_]==t[Z+_-R];++_);if(_>J){if(J=_,K=R,_>W)break;var tt=Math.min(R,_-2),nt=0;for(Y=0;Y<tt;++Y){var rt=Z-R+Y&32767,it=rt-z[rt]&32767;it>nt&&(nt=it,P=rt)}}}R+=(N=P)-(P=z[N])&32767}if(K){C[q++]=268435456|f[J]<<18|p[K];var et=31&f[J],ot=31&p[K];E+=e[et]+o[ot],++I[257+et],++U[ot],O=Z+J,++F}else C[q++]=t[Z],++I[t[Z]]}}for(Z=Math.max(Z,O);Z<l;++Z)C[q++]=t[Z],++I[t[Z]];y=B(t,d,g,C,I,U,E,q,G,Z-G,y),g||(c.r=7&y|d[y/8|0]<<3,y-=7,c.h=k,c.p=z,c.i=Z,c.w=O)}else{for(Z=c.w||0;Z<l+g;Z+=65535){var st=Z+65535;st>=l&&(d[y/8|0]=g,st=l),y=L(d,y+1,t.subarray(Z,st))}c.i=l}return D(v,0,u+T(y)+h)},P=function(){for(var t=new Int32Array(256),n=0;n<256;++n){for(var r=n,i=9;--i;)r=(1&r&&-306674912)^r>>>1;t[n]=r}return t}(),V=function(){var t=-1;return{p:function(n){for(var r=t,i=0;i<n.length;++i)r=P[255&r^n[i]]^r>>>8;t=r},d:function(){return~t}}},Y=function(){var t=1,n=0;return{p:function(r){for(var i=t,e=n,o=0|r.length,s=0;s!=o;){for(var a=Math.min(s+2655,o);s<a;++s)e+=i+=r[s];i=(65535&i)+15*(i>>16),e=(65535&e)+15*(e>>16)}t=i,n=e},d:function(){return(255&(t%=65521))<<24|(65280&t)<<8|(255&(n%=65521))<<8|n>>8}}},J=function(t,r,i,e,o){if(!o&&(o={l:1},r.dictionary)){var s=r.dictionary.subarray(-32768),a=new n(s.length+t.length);a.set(s),a.set(t,s.length),t=a,o.w=s.length}return N(t,null==r.level?6:r.level,null==r.mem?o.l?Math.ceil(1.5*Math.max(8,Math.min(13,Math.log(t.length)))):20:12+r.mem,i,e,o)},K=function(t,n){var r={};for(var i in t)r[i]=t[i];for(var i in n)r[i]=n[i];return r},Q=function(t,n,r){for(var i=t(),e=""+t,o=e.slice(e.indexOf("[")+1,e.lastIndexOf("]")).replace(/\s+/g,"").split(","),s=0;s<i.length;++s){var a=i[s],u=o[s];if("function"==typeof a){n+=";"+u+"=";var h=""+a;if(a.prototype)if(-1!=h.indexOf("[native code]")){var f=h.indexOf(" ",8)+1;n+=h.slice(f,h.indexOf("(",f))}else for(var c in n+=h,a.prototype)n+=";"+u+".prototype."+c+"="+a.prototype[c];else n+=h}else r[u]=a}return n},R=[],W=function(t){var n=[];for(var r in t)t[r].buffer&&n.push((t[r]=new t[r].constructor(t[r])).buffer);return n},X=function(n,r,i,e){if(!R[i]){for(var o="",s={},a=n.length-1,u=0;u<a;++u)o=Q(n[u],o,s);R[i]={c:Q(n[a],o,s),e:s}}var h=K({},R[i].e);return(0,t.default)(R[i].c+";onmessage=function(e){for(var k in e.data)self[k]=e.data[k];onmessage="+r+"}",i,h,W(h),e)},$=function(){return[n,r,i,e,o,s,h,l,x,k,v,C,y,M,S,A,T,D,I,U,Tt,et,ot]},_=function(){return[n,r,i,e,o,s,f,p,w,m,z,b,v,H,j,y,F,E,Z,q,O,G,L,B,T,D,N,J,kt,et]},tt=function(){return[pt,gt,lt,V,P]},nt=function(){return[vt,dt]},rt=function(){return[yt,lt,Y]},it=function(){return[mt]},et=function(t){return postMessage(t,[t.buffer])},ot=function(t){return t&&{out:t.size&&new n(t.size),dictionary:t.dictionary}},st=function(t,n,r,i,e,o){var s=X(r,i,e,function(t,n){s.terminate(),o(t,n)});return s.postMessage([t,n],n.consume?[t.buffer]:[]),function(){s.terminate()}},at=function(t){return t.ondata=function(t,n){return postMessage([t,n],[t.buffer])},function(n){n.data[0]?(t.push(n.data[0],n.data[1]),postMessage([n.data[0].length])):t.flush(n.data[1])}},ut=function(t,n,r,i,e,o,s){var a,u=X(t,i,e,function(t,r){t?(u.terminate(),n.ondata.call(n,t)):Array.isArray(r)?1==r.length?(n.queuedSize-=r[0],n.ondrain&&n.ondrain(r[0])):(r[1]&&u.terminate(),n.ondata.call(n,t,r[0],r[1])):s(r)});u.postMessage(r),n.queuedSize=0,n.push=function(t,r){n.ondata||I(5),a&&n.ondata(I(4,0,1),null,!!r),n.queuedSize+=t.length,u.postMessage([t,a=r],t.buffer instanceof ArrayBuffer?[t.buffer]:[])},n.terminate=function(){u.terminate()},o&&(n.flush=function(t){u.postMessage([0,t])})},ht=function(t,n){return t[n]|t[n+1]<<8},ft=function(t,n){return(t[n]|t[n+1]<<8|t[n+2]<<16|t[n+3]<<24)>>>0},ct=function(t,n){return ft(t,n)+4294967296*ft(t,n+4)},lt=function(t,n,r){for(;r;++n)t[n]=r,r>>>=8},pt=function(t,n){var r=n.filename;if(t[0]=31,t[1]=139,t[2]=8,t[8]=n.level<2?4:9==n.level?2:0,t[9]=3,0!=n.mtime&&lt(t,4,Math.floor(new Date(n.mtime||Date.now())/1e3)),r){t[3]=8;for(var i=0;i<=r.length;++i)t[i+10]=r.charCodeAt(i)}},vt=function(t){31==t[0]&&139==t[1]&&8==t[2]||I(6,"invalid gzip data");var n=t[3],r=10;4&n&&(r+=2+(t[10]|t[11]<<8));for(var i=(n>>3&1)+(n>>4&1);i>0;i-=!t[r++]);return r+(2&n)},dt=function(t){var n=t.length;return(t[n-4]|t[n-3]<<8|t[n-2]<<16|t[n-1]<<24)>>>0},gt=function(t){return 10+(t.filename?t.filename.length+1:0)},yt=function(t,n){var r=n.level,i=0==r?0:r<6?1:9==r?3:2;if(t[0]=120,t[1]=i<<6|(n.dictionary&&32),t[1]|=31-(t[0]<<8|t[1])%31,n.dictionary){var e=Y();e.p(n.dictionary),lt(t,2,e.d())}},mt=function(t,n){return(8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31)&&I(6,"invalid zlib data"),(t[1]>>5&1)==+!n&&I(6,"invalid zlib data: "+(32&t[1]?"need":"unexpected")+" dictionary"),2+(t[1]>>3&4)};function bt(t,n){return"function"==typeof t&&(n=t,t={}),this.ondata=n,t}var wt=function(){function t(t,r){if("function"==typeof t&&(r=t,t={}),this.ondata=r,this.o=t||{},this.s={l:0,i:32768,w:32768,z:32768},this.b=new n(98304),this.o.dictionary){var i=this.o.dictionary.subarray(-32768);this.b.set(i,32768-i.length),this.s.i=32768-i.length}}return t.prototype.p=function(t,n){this.ondata(J(t,this.o,0,0,this.s),n)},t.prototype.push=function(t,r){this.ondata||I(5),this.s.l&&I(4);var i=t.length+this.s.z;if(i>this.b.length){if(i>2*this.b.length-32768){var e=new n(-32768&i);e.set(this.b.subarray(0,this.s.z)),this.b=e}var o=this.b.length-this.s.z;this.b.set(t.subarray(0,o),this.s.z),this.s.z=this.b.length,this.p(this.b,!1),this.b.set(this.b.subarray(-32768)),this.b.set(t.subarray(o),32768),this.s.z=t.length-o+32768,this.s.i=32766,this.s.w=32768}else this.b.set(t,this.s.z),this.s.z+=t.length;this.s.l=1&r,(this.s.z>this.s.w+8191||r)&&(this.p(this.b,r||!1),this.s.w=this.s.i,this.s.i-=2),r&&(this.s=this.o={},this.b=j)},t.prototype.flush=function(t){if(this.ondata||I(5),this.s.l&&I(4),this.p(this.b,!1),this.s.w=this.s.i,this.s.i-=2,t){var r=new n(6);r[0]=this.s.r>>3;var i=L(r,this.s.r,j);this.s.r=0,this.ondata(r.subarray(0,i>>3),!1)}},t}();_e.Deflate=wt;var xt=function(){return function(t,n){ut([_,function(){return[at,wt]}],this,bt.call(this,t,n),function(t){var n=new wt(t.data);onmessage=at(n)},6,1)}}();function zt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_],function(t){return et(kt(t.data[0],t.data[1]))},0,r)}function kt(t,n){return J(t,n||{},0,0)}_e.AsyncDeflate=xt;var Mt=function(){function t(t,r){"function"==typeof t&&(r=t,t={}),this.ondata=r;var i=t&&t.dictionary&&t.dictionary.subarray(-32768);this.s={i:0,b:i?i.length:0},this.o=new n(32768),this.p=new n(0),i&&this.o.set(i)}return t.prototype.e=function(t){if(this.ondata||I(5),this.d&&I(4),this.p.length){if(t.length){var r=new n(this.p.length+t.length);r.set(this.p),r.set(t,this.p.length),this.p=r}}else this.p=t},t.prototype.c=function(t){this.s.i=+(this.d=t||!1);var n=this.s.b,r=U(this.p,this.s,this.o);this.ondata(D(r,n,this.s.b),this.d),this.o=D(r,this.s.b-32768),this.s.b=this.o.length,this.p=D(this.p,this.s.p/8|0),this.s.p&=7},t.prototype.push=function(t,n){this.e(t),this.c(n)},t}();_e.Inflate=Mt;var St=function(){return function(t,n){ut([$,function(){return[at,Mt]}],this,bt.call(this,t,n),function(t){var n=new Mt(t.data);onmessage=at(n)},7,0)}}();function At(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$],function(t){return et(Tt(t.data[0],ot(t.data[1])))},1,r)}function Tt(t,n){return U(t,{i:2},n&&n.out,n&&n.dictionary)}_e.AsyncInflate=St;var Dt=function(){function t(t,n){this.c=V(),this.l=0,this.v=1,wt.call(this,t,n)}return t.prototype.push=function(t,n){this.c.p(t),this.l+=t.length,wt.prototype.push.call(this,t,n)},t.prototype.p=function(t,n){var r=J(t,this.o,this.v&&gt(this.o),n&&8,this.s);this.v&&(pt(r,this.o),this.v=0),n&&(lt(r,r.length-8,this.c.d()),lt(r,r.length-4,this.l)),this.ondata(r,n)},t.prototype.flush=function(t){wt.prototype.flush.call(this,t)},t}();_e.Gzip=Dt,_e.Compress=Dt;var Ct=function(){return function(t,n){ut([_,tt,function(){return[at,wt,Dt]}],this,bt.call(this,t,n),function(t){var n=new Dt(t.data);onmessage=at(n)},8,1)}}();function It(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_,tt,function(){return[Ut]}],function(t){return et(Ut(t.data[0],t.data[1]))},2,r)}function Ut(t,n){n||(n={});var r=V(),i=t.length;r.p(t);var e=J(t,n,gt(n),8),o=e.length;return pt(e,n),lt(e,o-8,r.d()),lt(e,o-4,i),e}_e.AsyncGzip=Ct,_e.AsyncCompress=Ct;var Ft=function(){function t(t,n){this.v=1,this.r=0,Mt.call(this,t,n)}return t.prototype.push=function(t,r){if(Mt.prototype.e.call(this,t),this.r+=t.length,this.v){var i=this.p.subarray(this.v-1),e=i.length>3?vt(i):4;if(e>i.length){if(!r)return}else this.v>1&&this.onmember&&this.onmember(this.r-i.length);this.p=i.subarray(e),this.v=0}Mt.prototype.c.call(this,0),this.s.f&&!this.s.l?(this.v=T(this.s.p)+9,this.s={i:0},this.o=new n(0),this.push(new n(0),r)):r&&Mt.prototype.c.call(this,r)},t}();_e.Gunzip=Ft;var Et=function(){return function(t,n){var r=this;ut([$,nt,function(){return[at,Mt,Ft]}],this,bt.call(this,t,n),function(t){var n=new Ft(t.data);n.onmember=function(t){return postMessage(t)},onmessage=at(n)},9,0,function(t){return r.onmember&&r.onmember(t)})}}();function Zt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$,nt,function(){return[qt]}],function(t){return et(qt(t.data[0],t.data[1]))},3,r)}function qt(t,r){var i=vt(t);return i+8>t.length&&I(6,"invalid gzip data"),U(t.subarray(i,-8),{i:2},r&&r.out||new n(dt(t)),r&&r.dictionary)}_e.AsyncGunzip=Et;var Ot=function(){function t(t,n){this.c=Y(),this.v=1,wt.call(this,t,n)}return t.prototype.push=function(t,n){this.c.p(t),wt.prototype.push.call(this,t,n)},t.prototype.p=function(t,n){var r=J(t,this.o,this.v&&(this.o.dictionary?6:2),n&&4,this.s);this.v&&(yt(r,this.o),this.v=0),n&&lt(r,r.length-4,this.c.d()),this.ondata(r,n)},t.prototype.flush=function(t){wt.prototype.flush.call(this,t)},t}();_e.Zlib=Ot;var Gt=function(){return function(t,n){ut([_,rt,function(){return[at,wt,Ot]}],this,bt.call(this,t,n),function(t){var n=new Ot(t.data);onmessage=at(n)},10,1)}}();function Lt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_,rt,function(){return[Bt]}],function(t){return et(Bt(t.data[0],t.data[1]))},4,r)}function Bt(t,n){n||(n={});var r=Y();r.p(t);var i=J(t,n,n.dictionary?6:2,4);return yt(i,n),lt(i,i.length-4,r.d()),i}_e.AsyncZlib=Gt;var Ht=function(){function t(t,n){Mt.call(this,t,n),this.v=t&&t.dictionary?2:1}return t.prototype.push=function(t,n){if(Mt.prototype.e.call(this,t),this.v){if(this.p.length<6&&!n)return;this.p=this.p.subarray(mt(this.p,this.v-1)),this.v=0}n&&(this.p.length<4&&I(6,"invalid zlib data"),this.p=this.p.subarray(0,-4)),Mt.prototype.c.call(this,n)},t}();_e.Unzlib=Ht;var jt=function(){return function(t,n){ut([$,it,function(){return[at,Mt,Ht]}],this,bt.call(this,t,n),function(t){var n=new Ht(t.data);onmessage=at(n)},11,0)}}();function Nt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$,it,function(){return[Pt]}],function(t){return et(Pt(t.data[0],ot(t.data[1])))},5,r)}function Pt(t,n){return U(t.subarray(mt(t,n&&n.dictionary),-4),{i:2},n&&n.out,n&&n.dictionary)}_e.AsyncUnzlib=jt;var Vt=function(){function t(t,n){this.o=bt.call(this,t,n)||{},this.G=Ft,this.I=Mt,this.Z=Ht}return t.prototype.i=function(){var t=this;this.s.ondata=function(n,r){t.ondata(n,r)}},t.prototype.push=function(t,r){if(this.ondata||I(5),this.s)this.s.push(t,r);else{if(this.p&&this.p.length){var i=new n(this.p.length+t.length);i.set(this.p),i.set(t,this.p.length)}else this.p=t;this.p.length>2&&(this.s=31==this.p[0]&&139==this.p[1]&&8==this.p[2]?new this.G(this.o):8!=(15&this.p[0])||this.p[0]>>4>7||(this.p[0]<<8|this.p[1])%31?new this.I(this.o):new this.Z(this.o),this.i(),this.s.push(this.p,r),this.p=null)}},t}();_e.Decompress=Vt;var Yt=function(){function t(t,n){Vt.call(this,t,n),this.queuedSize=0,this.G=Et,this.I=St,this.Z=jt}return t.prototype.i=function(){var t=this;this.s.ondata=function(n,r,i){t.ondata(n,r,i)},this.s.ondrain=function(n){t.queuedSize-=n,t.ondrain&&t.ondrain(n)}},t.prototype.push=function(t,n){this.queuedSize+=t.length,Vt.prototype.push.call(this,t,n)},t}();function Jt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),31==t[0]&&139==t[1]&&8==t[2]?Zt(t,n,r):8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31?At(t,n,r):Nt(t,n,r)}function Kt(t,n){return 31==t[0]&&139==t[1]&&8==t[2]?qt(t,n):8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31?Tt(t,n):Pt(t,n)}_e.AsyncDecompress=Yt;var Qt=function(t,r,i,e){for(var o in t){var s=t[o],a=r+o,u=e;Array.isArray(s)&&(u=K(e,s[1]),s=s[0]),ArrayBuffer.isView(s)?i[a]=[s,u]:(i[a+="/"]=[new n(0),u],Qt(s,a,i,e))}},Rt="undefined"!=typeof TextEncoder&&new TextEncoder,Wt="undefined"!=typeof TextDecoder&&new TextDecoder,Xt=0;try{Wt.decode(j,{stream:!0}),Xt=1}catch(t){}var $t=function(t){for(var n="",r=0;;){var i=t[r++],e=(i>127)+(i>223)+(i>239);if(r+e>t.length)return{s:n,r:D(t,r-1)};e?3==e?(i=((15&i)<<18|(63&t[r++])<<12|(63&t[r++])<<6|63&t[r++])-65536,n+=String.fromCharCode(55296|i>>10,56320|1023&i)):n+=String.fromCharCode(1&e?(31&i)<<6|63&t[r++]:(15&i)<<12|(63&t[r++])<<6|63&t[r++]):n+=String.fromCharCode(i)}},_t=function(){function t(t){this.ondata=t,Xt?this.t=new TextDecoder:this.p=j}return t.prototype.push=function(t,r){if(this.ondata||I(5),r=!!r,this.t)return this.ondata(this.t.decode(t,{stream:!0}),r),void(r&&(this.t.decode().length&&I(8),this.t=null));this.p||I(4);var i=new n(this.p.length+t.length);i.set(this.p),i.set(t,this.p.length);var e=$t(i),o=e.s,s=e.r;r?(s.length&&I(8),this.p=null):this.p=s,this.ondata(o,r)},t}();_e.DecodeUTF8=_t;var tn=function(){function t(t){this.ondata=t}return t.prototype.push=function(t,n){this.ondata||I(5),this.d&&I(4),this.ondata(nn(t),this.d=n||!1)},t}();function nn(t,r){if(r){for(var i=new n(t.length),e=0;e<t.length;++e)i[e]=t.charCodeAt(e);return i}if(Rt)return Rt.encode(t);var o=t.length,s=new n(t.length+(t.length>>1)),a=0,u=function(t){s[a++]=t};for(e=0;e<o;++e){if(a+5>s.length){var h=new n(a+8+(o-e<<1));h.set(s),s=h}var f=t.charCodeAt(e);f<128||r?u(f):f<2048?(u(192|f>>6),u(128|63&f)):f>55295&&f<57344?(u(240|(f=65536+(1047552&f)|1023&t.charCodeAt(++e))>>18),u(128|f>>12&63),u(128|f>>6&63),u(128|63&f)):(u(224|f>>12),u(128|f>>6&63),u(128|63&f))}return D(s,0,a)}function rn(t,n){if(n){for(var r="",i=0;i<t.length;i+=16384)r+=String.fromCharCode.apply(null,t.subarray(i,i+16384));return r}if(Wt)return Wt.decode(t);var e=$t(t),o=e.s;return(r=e.r).length&&I(8),o}_e.EncodeUTF8=tn;var en=function(t){return 1==t?3:t<6?2:9==t?1:0},on=function(t,n){return n+30+ht(t,n+26)+ht(t,n+28)},sn=function(t,n,r){var i=ht(t,n+28),e=ht(t,n+30),o=rn(t.subarray(n+46,n+46+i),!(2048&ht(t,n+8))),s=n+46+i,a=an(t,s,e,r,ft(t,n+20),ft(t,n+24),ft(t,n+42)),u=a[0],h=a[1],f=a[2];return[ht(t,n+10),u,h,o,s+e+ht(t,n+32),f]},an=function(t,n,r,i,e,o,s){var a=4294967295==e,u=4294967295==o,h=4294967295==s,f=n+r;if(i&&a+u+h){for(;n+4<f;n+=4+ht(t,n+2))if(1==ht(t,n))return[a?ct(t,n+4+8*u):e,u?ct(t,n+4):o,h?ct(t,n+4+8*(u+a)):s,1];i<2&&I(13)}return[e,o,s,0]},un=function(t){var n=0;if(t)for(var r in t){var i=t[r].length;i>65535&&I(9),n+=i+4}return n},hn=function(t,n,r,i,e,o,s,a){var u=i.length,h=r.extra,f=a&&a.length,c=un(h);lt(t,n,null!=s?33639248:67324752),n+=4,null!=s&&(t[n++]=20,t[n++]=r.os),t[n]=20,n+=2,t[n++]=r.flag<<1|(o<0&&8),t[n++]=e&&8,t[n++]=255&r.compression,t[n++]=r.compression>>8;var l=new Date(null==r.mtime?Date.now():r.mtime),p=l.getFullYear()-1980;if((p<0||p>119)&&I(10),lt(t,n,p<<25|l.getMonth()+1<<21|l.getDate()<<16|l.getHours()<<11|l.getMinutes()<<5|l.getSeconds()>>1),n+=4,-1!=o&&(lt(t,n,r.crc),lt(t,n+4,o<0?-o-2:o),lt(t,n+8,r.size)),lt(t,n+12,u),lt(t,n+14,c),n+=16,null!=s&&(lt(t,n,f),lt(t,n+6,r.attrs),lt(t,n+10,s),n+=14),t.set(i,n),n+=u,c)for(var v in h){var d=h[v],g=d.length;lt(t,n,+v),lt(t,n+2,g),t.set(d,n+4),n+=4+g}return f&&(t.set(a,n),n+=f),n},fn=function(t,n,r,i,e){lt(t,n,101010256),lt(t,n+8,r),lt(t,n+10,r),lt(t,n+12,i),lt(t,n+16,e)},cn=function(){function t(t){this.filename=t,this.c=V(),this.size=0,this.compression=0}return t.prototype.process=function(t,n){this.ondata(null,t,n)},t.prototype.push=function(t,n){this.ondata||I(5),this.c.p(t),this.size+=t.length,n&&(this.crc=this.c.d()),this.process(t,n||!1)},t}();_e.ZipPassThrough=cn;var ln=function(){function t(t,n){var r=this;n||(n={}),cn.call(this,t),this.d=new wt(n,function(t,n){r.ondata(null,t,n)}),this.compression=8,this.flag=en(n.level)}return t.prototype.process=function(t,n){try{this.d.push(t,n)}catch(t){this.ondata(t,null,n)}},t.prototype.push=function(t,n){cn.prototype.push.call(this,t,n)},t}();_e.ZipDeflate=ln;var pn=function(){function t(t,n){var r=this;n||(n={}),cn.call(this,t),this.d=new xt(n,function(t,n,i){r.ondata(t,n,i)}),this.compression=8,this.flag=en(n.level),this.terminate=this.d.terminate}return t.prototype.process=function(t,n){this.d.push(t,n)},t.prototype.push=function(t,n){cn.prototype.push.call(this,t,n)},t}();_e.AsyncZipDeflate=pn;var vn=function(){function t(t){this.ondata=t,this.u=[],this.d=1}return t.prototype.add=function(t){var r=this;if(this.ondata||I(5),2&this.d)this.ondata(I(4+8*(1&this.d),0,1),null,!1);else{var i=nn(t.filename),e=i.length,o=t.comment,s=o&&nn(o),a=e!=t.filename.length||s&&o.length!=s.length,u=e+un(t.extra)+30;e>65535&&this.ondata(I(11,0,1),null,!1);var h=new n(u);hn(h,0,t,i,a,-1);var f=[h],c=function(){for(var t=0,n=f;t<n.length;t++)r.ondata(null,n[t],!1);f=[]},l=this.d;this.d=0;var p=this.u.length,v=K(t,{f:i,u:a,o:s,t:function(){t.terminate&&t.terminate()},r:function(){if(c(),l){var t=r.u[p+1];t?t.r():r.d=1}l=1}}),d=0;t.ondata=function(i,e,o){if(i)r.ondata(i,e,o),r.terminate();else if(d+=e.length,f.push(e),o){var s=new n(16);lt(s,0,134695760),lt(s,4,t.crc),lt(s,8,d),lt(s,12,t.size),f.push(s),v.c=d,v.b=u+d+16,v.crc=t.crc,v.size=t.size,l&&v.r(),l=1}else l&&c()},this.u.push(v)}},t.prototype.end=function(){var t=this;2&this.d?this.ondata(I(4+8*(1&this.d),0,1),null,!0):(this.d?this.e():this.u.push({r:function(){1&t.d&&(t.u.splice(-1,1),t.e())},t:function(){}}),this.d=3)},t.prototype.e=function(){for(var t=0,r=0,i=0,e=0,o=this.u;e<o.length;e++)i+=46+(h=o[e]).f.length+un(h.extra)+(h.o?h.o.length:0);for(var s=new n(i+22),a=0,u=this.u;a<u.length;a++){var h;hn(s,t,h=u[a],h.f,h.u,-h.c-2,r,h.o),t+=46+h.f.length+un(h.extra)+(h.o?h.o.length:0),r+=h.b}fn(s,t,this.u.length,i,r),this.ondata(null,s,!0),this.d=2},t.prototype.terminate=function(){for(var t=0,n=this.u;t<n.length;t++)n[t].t();this.d=2},t}();function dn(t,r,i){i||(i=r,r={}),"function"!=typeof i&&I(7);var e={};Qt(t,"",e,r);var o=Object.keys(e),s=o.length,a=0,u=0,h=s,f=Array(s),c=[],l=function(){for(var t=0;t<c.length;++t)c[t]()},p=function(t,n){xn(function(){i(t,n)})};xn(function(){p=i});var v=function(){var t=new n(u+22),r=a,i=u-a;u=0;for(var e=0;e<h;++e){var o=f[e];try{var s=o.c.length;hn(t,u,o,o.f,o.u,s);var c=30+o.f.length+un(o.extra),l=u+c;t.set(o.c,l),hn(t,a,o,o.f,o.u,s,u,o.m),a+=16+c+(o.m?o.m.length:0),u=l+s}catch(t){return p(t,null)}}fn(t,a,f.length,i,r),p(null,t)};s||v();for(var d=function(t){var n=o[t],r=e[n],i=r[0],h=r[1],d=V(),g=i.length;d.p(i);var y=nn(n),m=y.length,b=h.comment,w=b&&nn(b),x=w&&w.length,z=un(h.extra),k=0==h.level?0:8,M=function(r,i){if(r)l(),p(r,null);else{var e=i.length;f[t]=K(h,{size:g,crc:d.d(),c:i,f:y,m:w,u:m!=n.length||w&&b.length!=x,compression:k}),a+=30+m+z+e,u+=76+2*(m+z)+(x||0)+e,--s||v()}};if(m>65535&&M(I(11,0,1),null),k)if(g<16e4)try{M(null,kt(i,h))}catch(t){M(t,null)}else c.push(zt(i,h,M));else M(null,i)},g=0;g<h;++g)d(g);return l}function gn(t,r){r||(r={});var i={},e=[];Qt(t,"",i,r);var o=0,s=0;for(var a in i){var u=i[a],h=u[0],f=u[1],c=0==f.level?0:8,l=(M=nn(a)).length,p=f.comment,v=p&&nn(p),d=v&&v.length,g=un(f.extra);l>65535&&I(11);var y=c?kt(h,f):h,m=y.length,b=V();b.p(h),e.push(K(f,{size:h.length,crc:b.d(),c:y,f:M,m:v,u:l!=a.length||v&&p.length!=d,o:o,compression:c})),o+=30+l+g+m,s+=76+2*(l+g)+(d||0)+m}for(var w=new n(s+22),x=o,z=s-o,k=0;k<e.length;++k){var M;hn(w,(M=e[k]).o,M,M.f,M.u,M.c.length);var S=30+M.f.length+un(M.extra);w.set(M.c,M.o+S),hn(w,o,M,M.f,M.u,M.c.length,M.o,M.m),o+=16+S+(M.m?M.m.length:0)}return fn(w,o,e.length,z,x),w}_e.Zip=vn;var yn=function(){function t(){}return t.prototype.push=function(t,n){this.ondata(null,t,n)},t.compression=0,t}();_e.UnzipPassThrough=yn;var mn=function(){function t(){var t=this;this.i=new Mt(function(n,r){t.ondata(null,n,r)})}return t.prototype.push=function(t,n){try{this.i.push(t,n)}catch(t){this.ondata(t,null,n)}},t.compression=8,t}();_e.UnzipInflate=mn;var bn=function(){function t(t,n){var r=this;n<32e4?this.i=new Mt(function(t,n){r.ondata(null,t,n)}):(this.i=new St(function(t,n,i){r.ondata(t,n,i)}),this.terminate=this.i.terminate)}return t.prototype.push=function(t,n){this.i.terminate&&(t=D(t,0)),this.i.push(t,n)},t.compression=8,t}();_e.AsyncUnzipInflate=bn;var wn=function(){function t(t){this.onfile=t,this.k=[],this.o={0:yn},this.p=j}return t.prototype.push=function(t,r){var i=this;if(this.onfile||I(5),this.p||I(4),this.c>0){var e=Math.min(this.c,t.length),o=t.subarray(0,e);if(this.c-=e,this.d?this.d.push(o,!this.c):this.k[0].push(o),(t=t.subarray(e)).length)return this.push(t,r)}else{var s=0,a=0,u=void 0,h=void 0;this.p.length?t.length?((h=new n(this.p.length+t.length)).set(this.p),h.set(t,this.p.length)):h=this.p:h=t;for(var f=h.length,c=this.c,l=c&&this.d,p=function(){var t=ft(h,a);if(67324752==t){s=1,u=a,v.d=null,v.c=0;var n=ht(h,a+6),r=ht(h,a+8),e=2048&n,o=8&n,l=ht(h,a+26),p=ht(h,a+28);if(f>a+30+l+p){var d=[];v.k.unshift(d),s=2;var g,y=ft(h,a+18),m=ft(h,a+22),b=rn(h.subarray(a+30,a+=30+l),!e),w=an(h,a,p,2,y,m,0),x=w[0],z=w[1];o&&(x=-1-w[3]),a+=p,v.c=x;var k={name:b,compression:r,start:function(){if(k.ondata||I(5),x){var t=i.o[r];t||k.ondata(I(14,"unknown compression type "+r,1),null,!1),(g=x<0?new t(b):new t(b,x,z)).ondata=function(t,n,r){k.ondata(t,n,r)};for(var n=0,e=d;n<e.length;n++)g.push(e[n],!1);i.k[0]==d&&i.c?i.d=g:g.push(j,!0)}else k.ondata(null,j,!0)},terminate:function(){g&&g.terminate&&g.terminate()}};x>=0&&(k.size=x,k.originalSize=z),v.onfile(k)}return"break"}if(c){if(134695760==t)return u=a+=12+(-2==c&&8),s=3,v.c=0,"break";if(33639248==t)return u=a-=4,s=3,v.c=0,"break"}},v=this;a<f-4&&"break"!==p();++a);if(this.p=j,c<0){var d=h.subarray(0,s?u-12-(-2==c&&8)-(134695760==ft(h,u-16)&&4):a);l?l.push(d,!!s):this.k[+(2==s)].push(d)}if(2&s)return this.push(h.subarray(a),r);this.p=h.subarray(a)}r&&(this.c&&I(13),this.p=null)},t.prototype.register=function(t){this.o[t.compression]=t},t}();_e.Unzip=wn;var xn="function"==typeof queueMicrotask?queueMicrotask:"function"==typeof setTimeout?setTimeout:function(t){t()};function zn(t,r,i){i||(i=r,r={}),"function"!=typeof i&&I(7);var e=[],o=function(){for(var t=0;t<e.length;++t)e[t]()},s={},a=function(t,n){xn(function(){i(t,n)})};xn(function(){a=i});for(var u=t.length-22;101010256!=ft(t,u);--u)if(!u||t.length-u>65558)return a(I(13,0,1),null),o;var h=ht(t,u+8);if(h){var f=h,c=ft(t,u+16),l=117853008==ft(t,u-20);if(l){var p=ft(t,u-12);(l=101075792==ft(t,p))&&(f=h=ft(t,p+32),c=ft(t,p+48))}for(var v=r&&r.filter,d=function(r){var i=sn(t,c,l),u=i[0],f=i[1],p=i[2],d=i[3],g=i[4],y=on(t,i[5]);c=g;var m=function(t,n){t?(o(),a(t,null)):(n&&(s[d]=n),--h||a(null,s))};if(!v||v({name:d,size:f,originalSize:p,compression:u}))if(u)if(8==u){var b=t.subarray(y,y+f);if(p<524288||f>.8*p)try{m(null,Tt(b,{out:new n(p)}))}catch(t){m(t,null)}else e.push(At(b,{size:p},m))}else m(I(14,"unknown compression type "+u,1),null);else m(null,D(t,y,y+f));else m(null,null)},g=0;g<f;++g)d()}else a(null,{});return o}function kn(t,r){for(var i={},e=t.length-22;101010256!=ft(t,e);--e)(!e||t.length-e>65558)&&I(13);var o=ht(t,e+8);if(!o)return{};var s=ft(t,e+16),a=117853008==ft(t,e-20);if(a){var u=ft(t,e-12);(a=101075792==ft(t,u))&&(o=ft(t,u+32),s=ft(t,u+48))}for(var h=r&&r.filter,f=0;f<o;++f){var c=sn(t,s,a),l=c[0],p=c[1],v=c[2],d=c[3],g=c[4],y=on(t,c[5]);s=g,h&&!h({name:d,size:p,originalSize:v,compression:l})||(l?8==l?i[d]=Tt(t.subarray(y,y+p),{out:new n(v)}):I(14,"unknown compression type "+l):i[d]=D(t,y,y+p))}return i}return _e});</script>
+<script id="src-engine">/* Issuance Tracker engine: zip + streaming xlsx scan + classify + pivot + xlsx writer.  Needs global `fflate`. */
+const Engine=(function(){
+'use strict';
+const ITEMS=['Cat 6','Drop Fiber accessories','Wifi router','W-Modem outdoor','Ont','Face Plate','Outdoor cable'];
+const ITEM_IDX={};ITEMS.forEach((n,i)=>ITEM_IDX[n.toLowerCase()]=i);
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DEFAULT_RULES={catPerSet:20,cablePerOnt:90,cableTol:100,fpPerOnt:1,dfPerOnt:1};
+const dec=new TextDecoder('utf-8');
+
+/* ---------- helpers ---------- */
+function unesc(s){if(s.indexOf('&')<0)return s;return s.replace(/&(#x[0-9a-fA-F]+|#\d+|lt|gt|amp|quot|apos);/g,function(m,g){switch(g){case'lt':return'<';case'gt':return'>';case'amp':return'&';case'quot':return'"';case'apos':return"'";}return String.fromCodePoint(g[1]==='x'?parseInt(g.slice(2),16):parseInt(g.slice(1),10));});}
+function xmlEsc(s){return String(s).replace(/[&<>]/g,function(c){return c==='&'?'&amp;':c==='<'?'&lt;':'&gt;';}).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'');}
+function fmtDay(day){const d=new Date(Math.round((day-25569)*86400000));return String(d.getUTCDate()).padStart(2,'0')+'-'+MON[d.getUTCMonth()];}
+function parseDay(v){if(v===''||v==null)return NaN;const n=Number(v);if(!isNaN(n))return Math.floor(n);const t=Date.parse(v);if(isNaN(t))return NaN;return Math.floor(t/86400000)+25569;}
+function colName(n){let s='';n++;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;}
+const normHdr=s=>String(s==null?'':s).trim().toLowerCase().replace(/[\s\-]+/g,'_');
+
+/* ---------- zip ---------- */
+function u16(b,o){return b[o]|(b[o+1]<<8);}
+function u32(b,o){return(b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0;}
+function zipEntries(u8){
+  const min=Math.max(0,u8.length-65557);let i=u8.length-22;
+  for(;i>=min;i--){if(u8[i]===0x50&&u8[i+1]===0x4b&&u8[i+2]===5&&u8[i+3]===6)break;}
+  if(i<min)throw new Error('This is not a valid zip / xlsx file.');
+  const n=u16(u8,i+10);let p=u32(u8,i+16);const out=[];
+  for(let k=0;k<n;k++){
+    if(u32(u8,p)!==0x02014b50)break;
+    const method=u16(u8,p+10),csize=u32(u8,p+20),usize=u32(u8,p+24),nl=u16(u8,p+28),el=u16(u8,p+30),cl=u16(u8,p+32),off=u32(u8,p+42);
+    if(csize===0xFFFFFFFF||usize===0xFFFFFFFF||off===0xFFFFFFFF)throw new Error('Zip64 archives are not supported.');
+    out.push({name:dec.decode(u8.subarray(p+46,p+46+nl)),method,csize,usize,off});
+    p+=46+nl+el+cl;
+  }
+  return out;
+}
+function entryRaw(u8,e){const o=e.off,s=o+30+u16(u8,o+26)+u16(u8,o+28);return u8.subarray(s,s+e.csize);}
+function entryBytes(u8,e){
+  const d=entryRaw(u8,e);
+  if(e.method===0)return d;
+  if(e.method===8)return fflate.inflateSync(d,{out:new Uint8Array(e.usize)});
+  throw new Error('Unsupported zip compression method '+e.method);
+}
+const HAS_NATIVE=(function(){try{if(typeof DecompressionStream!=='function')return false;new DecompressionStream('deflate-raw');return true;}catch(e){return false;}})();
+/* streams the inflated bytes of an entry to onChunk(u8) ; onChunk returns true to stop. onProg(fraction) */
+async function entryStream(u8,e,onChunk,onProg){
+  const d=entryRaw(u8,e);
+  if(e.method===0){const st=1<<22;for(let i=0;i<d.length;i+=st){if(onChunk(d.subarray(i,i+st)))return;onProg&&onProg(i/d.length);}return;}
+  if(e.method!==8)throw new Error('Unsupported zip compression method '+e.method);
+  const STEP=1<<20;
+  if(HAS_NATIVE){
+    const ds=new DecompressionStream('deflate-raw');const w=ds.writable.getWriter(),r=ds.readable.getReader();
+    let stop=false,werr=null,fed=0;
+    const writing=(async()=>{try{for(let i=0;i<d.length&&!stop;i+=STEP){await w.write(d.subarray(i,Math.min(d.length,i+STEP)));fed=i;}if(!stop)await w.close();}catch(x){werr=x;}})();
+    for(;;){const q=await r.read();if(q.done)break;if(onChunk(q.value)){stop=true;try{await r.cancel();}catch(x){}break;}onProg&&onProg(Math.min(1,fed/d.length));}
+    if(!stop){await writing;if(werr)throw werr;}
+    return;
+  }
+  await new Promise(function(res,rej){
+    let stop=false,i=0;
+    const inf=new fflate.Inflate(function(chunk){if(!stop&&onChunk(chunk))stop=true;});
+    function pump(){try{
+      if(stop){res();return;}
+      const end=Math.min(d.length,i+STEP);inf.push(d.subarray(i,end),end>=d.length);i=end;onProg&&onProg(i/d.length);
+      if(i<d.length)setTimeout(pump,0);else res();
+    }catch(x){rej(x);}}
+    pump();
+  });
+}
+
+/* ---------- shared strings (offset table, lazy substrings) ---------- */
+function buildSst(bytes){
+  const text=dec.decode(bytes);const st=[],en=[],cx=new Set();let p=0,nextR=-2;
+  for(;;){
+    const a=text.indexOf('<si',p);if(a<0)break;const c=text.charCodeAt(a+3);
+    if(c===47){st.push(0);en.push(0);p=a+5;continue;}
+    if(c!==62&&c!==32){p=a+3;continue;}
+    const b=text.indexOf('</si>',a);if(b<0)break;
+    if(nextR!==-1&&nextR<a)nextR=text.indexOf('<r>',a);
+    const rr=nextR;
+    if(rr>=0&&rr<b){cx.add(st.length);st.push(a);en.push(b);}
+    else{const t=text.indexOf('<t',a);if(t<0||t>b){st.push(0);en.push(0);}else{const t1=text.indexOf('>',t)+1;const t2=text.indexOf('</t>',t1);st.push(t1);en.push(t2);}}
+    p=b+5;
+  }
+  return{count:st.length,get:function(i){
+    if(i>=st.length)return '';
+    if(cx.size&&cx.has(i)){const seg=text.substring(st[i],en[i]);let o='',m,re=/<t[^>]*>([^<]*)<\/t>/g;while((m=re.exec(seg)))o+=m[1];return unesc(o);}
+    return unesc(text.substring(st[i],en[i]));
+  }};
+}
+
+/* ---------- streaming row scanner ---------- */
+function createScanner(sstGet,cfg){
+  let carry='',pend=[],plen=0,hdr=true,stopped=false,rowsSeen=0;
+  const vals=[],typ=[];let want=null,wantList=[],gateCol=-1,gateFn=null,wantAll=false;
+  function resolve(c){const v=vals[c];if(v===undefined)return '';return typ[c]===1?sstGet(+v):unesc(v);}
+  function row(s,a,b){
+    rowsSeen++;
+    let i=s.indexOf('>',a)+1;
+    if(hdr||wantAll)vals.length=0;else for(let k=0;k<wantList.length;k++)vals[wantList[k]]=undefined;
+    for(;;){
+      i=s.indexOf('<c ',i);if(i<0||i>=b)break;
+      let j=i+6,ch=s.charCodeAt(j),col=0;
+      while(ch>=65&&ch<=90){col=col*26+ch-64;ch=s.charCodeAt(++j);}
+      col--;
+      const gt=s.indexOf('>',j);
+      if(s.charCodeAt(gt-1)===47){i=gt+1;continue;}
+      const e=s.indexOf('</c>',gt);
+      if(hdr||wantAll||want[col]===1){
+        const vs=s.indexOf('<v>',gt);
+        if(vs>=0&&vs<e){
+          const ve=s.indexOf('</v>',vs);vals[col]=s.substring(vs+3,ve);
+          const tp=s.indexOf(' t="',j);typ[col]=(tp>=0&&tp<gt&&s.charCodeAt(tp+4)===115&&s.charCodeAt(tp+5)===34)?1:0;
+        }else{
+          const ts=s.indexOf('<t',gt);
+          if(ts>=0&&ts<e){const t1=s.indexOf('>',ts)+1;const t2=s.indexOf('</t>',t1);vals[col]=s.substring(t1,t2);typ[col]=0;}
+        }
+        if(!hdr&&col===gateCol&&!gateFn(resolve(col)))return;
+      }
+      i=e+4;
+    }
+    if(hdr){
+      const names=[];for(let c=0;c<vals.length;c++)names.push(resolve(c));
+      const conf=cfg.onHeader(names);hdr=false;
+      if(!conf){stopped=true;return;}
+      wantAll=!!conf.wantAll;wantList=conf.cols||[];gateCol=conf.gateCol===undefined?-1:conf.gateCol;gateFn=conf.gateFn;
+      want=new Uint8Array(Math.max.apply(null,wantList.concat([0]))+1);for(const c of wantList)want[c]=1;
+      return;
+    }
+    cfg.onRow(resolve);
+  }
+  function scan(){
+    const s=carry?carry+pend.join(''):pend.length===1?pend[0]:pend.join('');pend=[];plen=0;
+    let pos=0;
+    for(;;){
+      const a=s.indexOf('<row ',pos);
+      if(a<0){carry=s.slice(Math.max(pos,s.length-5));return;}
+      const gt=s.indexOf('>',a);
+      if(gt<0){carry=s.slice(a);return;}
+      if(s.charCodeAt(gt-1)===47){pos=gt+1;continue;}
+      const b=s.indexOf('</row>',gt);
+      if(b<0){carry=s.slice(a);return;}
+      row(s,a,b);pos=b+6;
+      if(stopped){carry='';return;}
+    }
+  }
+  return{
+    push:function(str){if(stopped)return true;pend.push(str);plen+=str.length;if(plen>=1048576)scan();return stopped;},
+    finish:function(){if(!stopped&&pend.length)scan();},
+    rows:function(){return rowsSeen;},
+    stopped:function(){return stopped;}
+  };
+}
+
+/* ---------- classification ---------- */
+const RX_IPTV=/iptv/i,RX_ONT=/\bont\b/i,RX_MODEM=/modem\s*outdoor/i,RX_WIFI=/wi-?fi\s*router/i;
+const RX_CAT6=/cat\s*-?\s*6/i,RX_FPCODE=/^B[0O]IMPXV5$/i,RX_MONKEY=/monkey\s*bit/i,RX_OFC=/(optical|drop)\s*fib(er|re)\s*cable/i,RX_TOOL=/tool|tester|crimp/i,RX_CABLE=/cable/i,RX_OUT=/outdoor/i,RX_OUTCABLE=/outdoor\s*cable/i,RX_DROP=/drop\s*fib(er|re)\s*accessor/i;
+function classify(desc,code,hasSerial){
+  const d=desc||'';
+  if(hasSerial){
+    if(RX_IPTV.test(d))return 'iptv';          /* must be first so IPTV boxes never reach the ONT rule */
+    if(RX_ONT.test(d))return 'Ont';
+    if(RX_MODEM.test(d))return 'W-Modem outdoor';
+    if(RX_WIFI.test(d))return 'Wifi router';
+    return d;
+  }
+  if(RX_CAT6.test(d)&&RX_CABLE.test(d)&&!RX_TOOL.test(d))return 'Cat 6';
+  if(RX_FPCODE.test(String(code||'').trim()))return 'Face Plate';
+  if(RX_MONKEY.test(d)||(RX_OFC.test(d)&&RX_OUT.test(d))||RX_OUTCABLE.test(d))return 'Outdoor cable';
+  if(RX_DROP.test(d))return 'Drop Fiber accessories';
+  return d;
+}
+
+/* ---------- main processing ---------- */
+const isSdfx=s=>s.toUpperCase().indexOf('SDFX')>=0;
+const REQ=[['engineer_name','Engineer_Name'],['substore_locator','Substore_Locator'],['item_code','Item_Code'],['item_description','Item_Description'],['issued_qty','Issued_Qty'],['serial_number','Serial_Number'],['txn_type','Txn_Type'],['txn_date','Txn_Date']];
+async function processFile(buffer,fileName,locRows,progress){
+  const t0=Date.now();const prog=progress||function(){};
+  prog({stage:'Reading zip',pct:0});
+  const u8=new Uint8Array(buffer);let xlsx=u8,xents=zipEntries(u8);
+  if(!xents.some(e=>e.name==='xl/workbook.xml')){
+    const inner=xents.find(e=>/\.xlsx$/i.test(e.name)&&!/^__MACOSX/.test(e.name));
+    if(!inner)throw new Error('No .xlsx file found inside the zip.');
+    prog({stage:'Step 1 · Extracting '+inner.name,pct:0});
+    xlsx=entryBytes(u8,inner);xents=zipEntries(xlsx);
+  }
+  const locMap=new Map(),locUp=new Map();
+  for(const r of locRows){const k=String(r[0]).trim();if(!k||locMap.has(k))continue;const v={circle:String(r[1]).trim(),store:String(r[2]).trim()};locMap.set(k,v);locUp.set(k.toUpperCase(),v);}
+  const sstE=xents.find(e=>e.name==='xl/sharedStrings.xml');let sst={get:function(i){return '';},count:0};
+  if(sstE){prog({stage:'Loading shared strings',pct:0});sst=buildSst(entryBytes(xlsx,sstE));}
+  const sheets=xents.filter(e=>/^xl\/worksheets\/sheet\d+\.xml$/.test(e.name)).sort((a,b)=>parseInt(a.name.replace(/\D/g,''))-parseInt(b.name.replace(/\D/g,'')));
+  const agg=new Map(),catCache=new Map(),unmapped={},types={};
+  const st={totalRows:0,sdfxRows:0,usedRows:0,otherRows:0,badDate:0,sheetsScanned:0};
+  let fatal=null;
+  for(const sh of sheets){
+    if(sh.usize<3000)continue;
+    let ix=null;
+    const sc=createScanner(sst.get,{
+      onHeader:function(names){
+        const m={};names.forEach((n,i)=>{const k=normHdr(n);if(m[k]===undefined)m[k]=i;});
+        if(m['substore_locator']===undefined)return null;
+        const miss=REQ.filter(r=>m[r[0]]===undefined).map(r=>r[1]);
+        if(miss.length){fatal=new Error('Missing column(s): '+miss.join(', '));return null;}
+        ix={};REQ.forEach(r=>ix[r[0]]=m[r[0]]);
+        return{cols:REQ.map(r=>m[r[0]]),gateCol:m['substore_locator'],gateFn:isSdfx};
+      },
+      onRow:function(get){
+        const loc=get(ix.substore_locator).trim();
+        if(!isSdfx(loc))return;
+        st.sdfxRows++;
+        const ser=get(ix.serial_number).trim(),has=ser!=='';
+        const code=get(ix.item_code),desc=get(ix.item_description);
+        const ck=(has?'S|':'N|')+code+'|'+desc;let cat=catCache.get(ck);
+        if(cat===undefined){cat=classify(desc,code,has);catCache.set(ck,cat);}
+        const ii=ITEM_IDX[cat.toLowerCase()];
+        if(ii===undefined){st.otherRows++;return;}
+        const day=parseDay(get(ix.txn_date));if(isNaN(day)){st.badDate++;return;}
+        let circle,store;const m=locMap.get(loc)||locUp.get(loc.toUpperCase());
+        if(m){circle=m.circle;store=m.store;}else{circle='UNMAPPED';store=loc;unmapped[loc]=(unmapped[loc]||0)+1;}
+        const qty=has?1:(Number(get(ix.issued_qty))||0);
+        const t=get(ix.txn_type).trim()||'(blank)';
+        const eng=get(ix.engineer_name).trim();
+        const key=t+'\u0001'+day+'\u0001'+circle.toLowerCase()+'\u0001'+store.toLowerCase()+'\u0001'+eng.toLowerCase();
+        let rec=agg.get(key);if(!rec){rec={t:t,day:day,circle:circle,store:store,eng:eng,q:[0,0,0,0,0,0,0]};agg.set(key,rec);}
+        rec.q[ii]+=qty;types[t]=(types[t]||0)+1;st.usedRows++;
+      }
+    });
+    const dd=new TextDecoder('utf-8');let lastRep=0;
+    await entryStream(xlsx,sh,function(chunk){return sc.push(dd.decode(chunk,{stream:true}));},function(f){
+      const n=Date.now();if(n-lastRep>150){lastRep=n;prog({stage:'Step 2–5 · Scanning rows & applying rules ('+sh.name.split('/').pop()+')',pct:f,rows:st.totalRows+sc.rows(),used:st.usedRows});}
+    });
+    sc.finish();
+    if(fatal)throw fatal;
+    if(ix){st.sheetsScanned++;st.totalRows+=Math.max(0,sc.rows()-1);}
+  }
+  if(!st.sheetsScanned)throw new Error('No sheet with a "Substore_Locator" column was found. Is this the Issuance Recover PAN India raw file?');
+  prog({stage:'Aggregating',pct:1,rows:st.totalRows,used:st.usedRows});
+  return{meta:Object.assign({},st,{unmapped:unmapped,types:types,fileName:fileName,ms:Date.now()-t0,locatorCount:locMap.size}),records:Array.from(agg.values())};
+}
+
+/* ---------- locator table file (xlsx / csv) ---------- */
+function parseCsv(text){
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else if(c==='"')q=true;else if(c===','){row.push(cur);cur='';}
+    else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}else if(c!=='\r')cur+=c;}
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}return rows;
+}
+function locFromRows(rows){
+  for(let h=0;h<Math.min(rows.length,10);h++){
+    const names=rows[h].map(normHdr);
+    const a=names.findIndex(n=>n.indexOf('locator')>=0),c=names.findIndex(n=>n==='circle'),s=names.findIndex(n=>n.indexOf('sfx')>=0&&n.indexOf('store')>=0);
+    if(a>=0&&c>=0&&s>=0){const out=[];for(let r=h+1;r<rows.length;r++){const x=rows[r];if(x[a]&&x[c]&&x[s])out.push([String(x[a]).trim(),String(x[c]).trim(),String(x[s]).trim()]);}return out;}
+  }
+  return null;
+}
+function parseLocatorFile(buffer,name){
+  const u8=new Uint8Array(buffer);
+  if(!(u8[0]===0x50&&u8[1]===0x4b)){const r=locFromRows(parseCsv(dec.decode(u8)));if(!r)throw new Error('Could not find columns "Substore Locator", "Circle" and "SFX Store Name".');return r;}
+  const ents=zipEntries(u8);const se=ents.find(e=>e.name==='xl/sharedStrings.xml');
+  const sst=se?buildSst(entryBytes(u8,se)):{get:()=>''};
+  for(const sh of ents.filter(e=>/^xl\/worksheets\/sheet\d+\.xml$/.test(e.name))){
+    const rows=[];const sc=createScanner(sst.get,{onHeader:function(names){rows.push(names);return{wantAll:true};},onRow:function(get){const r=[];for(let c=0;c<12;c++)r.push(get(c));rows.push(r);}});
+    sc.push(dec.decode(entryBytes(u8,sh)));sc.finish();
+    const r=locFromRows(rows);if(r&&r.length)return r;
+  }
+  throw new Error('Could not find columns "Substore Locator", "Circle" and "SFX Store Name" in the file.');
+}
+
+/* ---------- pivot + allocation rules ---------- */
+function buildPivot(records,opt){
+  const rules=Object.assign({},DEFAULT_RULES,opt.rules||{});
+  const map=new Map();
+  for(const r of records){
+    if(opt.types&&!opt.types.has(r.t))continue;
+    if(opt.circles&&!opt.circles.has(r.circle))continue;
+    const k=r.day+'\u0001'+r.circle.toLowerCase()+'\u0001'+r.store.toLowerCase()+'\u0001'+r.eng.toLowerCase();
+    let x=map.get(k);if(!x){x={day:r.day,circle:r.circle,store:r.store,eng:r.eng,q:[0,0,0,0,0,0,0]};map.set(k,x);}
+    for(let i=0;i<7;i++)x.q[i]+=r.q[i];
+  }
+  const rows=Array.from(map.values());
+  const lc=s=>s.toLowerCase();
+  rows.sort((a,b)=>a.day-b.day||(lc(a.circle)<lc(b.circle)?-1:lc(a.circle)>lc(b.circle)?1:0)||(lc(a.store)<lc(b.store)?-1:lc(a.store)>lc(b.store)?1:0)||(lc(a.eng)<lc(b.eng)?-1:lc(a.eng)>lc(b.eng)?1:0));
+  const extras=[],stores=new Map();
+  const tot={q:[0,0,0,0,0,0,0],exCat:0,exCable:0,grand:0,red:0,green:0,exFp:0,exDf:0};
+  for(const r of rows){
+    const q=r.q,cat6=q[0],df=q[1],wifi=q[2],modem=q[3],ont=q[4],fp=q[5],oc=q[6];
+    const sets=Math.min(wifi,modem);
+    r.exCat=Math.max(0,cat6-rules.catPerSet*sets);
+    const over=oc-rules.cablePerOnt*ont;r.exCable=over>rules.cableTol?over:0;
+    r.exFp=Math.max(0,fp-rules.fpPerOnt*ont);r.exDf=Math.max(0,df-rules.dfPerOnt*ont);
+    r.red=r.exCat>0||r.exCable>0||r.exFp>0||r.exDf>0;
+    r.total=q[0]+q[1]+q[2]+q[3]+q[4]+q[5]+q[6];
+    const why=[];
+    if(r.exCat>0){why.push('Cat 6 +'+r.exCat);extras.push({row:r,item:'Cat 6',issued:cat6,allowed:rules.catPerSet*sets,extra:r.exCat});}
+    if(r.exCable>0){why.push('Outdoor cable +'+r.exCable);extras.push({row:r,item:'Outdoor cable',issued:oc,allowed:rules.cablePerOnt*ont,extra:r.exCable});}
+    if(r.exFp>0){why.push('Face Plate +'+r.exFp);extras.push({row:r,item:'Face Plate',issued:fp,allowed:rules.fpPerOnt*ont,extra:r.exFp});}
+    if(r.exDf>0){why.push('Drop Fiber +'+r.exDf);extras.push({row:r,item:'Drop Fiber accessories',issued:df,allowed:rules.dfPerOnt*ont,extra:r.exDf});}
+    r.why=why.join('; ');
+    for(let i=0;i<7;i++)tot.q[i]+=q[i];
+    tot.exCat+=r.exCat;tot.exCable+=r.exCable;tot.exFp+=r.exFp;tot.exDf+=r.exDf;tot.grand+=r.total;
+    if(r.red)tot.red++;else tot.green++;
+    const sk=r.store.toLowerCase()+'\u0001'+r.circle.toLowerCase();let s=stores.get(sk);
+    if(!s){s={store:r.store,circle:r.circle,rows:0,red:0,exCat:0,exCable:0,exFp:0,exDf:0};stores.set(sk,s);}
+    s.rows++;if(r.red)s.red++;s.exCat+=r.exCat;s.exCable+=r.exCable;s.exFp+=r.exFp;s.exDf+=r.exDf;
+  }
+  const storeList=Array.from(stores.values()).sort((a,b)=>(b.exCable+b.exCat+b.exFp+b.exDf)-(a.exCable+a.exCat+a.exFp+a.exDf));
+  return{rows:rows,extras:extras,stores:storeList,tot:tot,rules:rules};
+}
+
+/* ---------- xlsx writer ---------- */
+const STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd\\-mmm"/></numFmts><fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><name val="Calibri"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFC5E0F2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFC7CE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFC6EFCE"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+const S={DEF:0,HDR:1,DATE:2,CTR:3,RED:4,GRN:5,BNUM:6,BTXT:7,TITLE:8,H1:9};
+function sheetXml(o){
+  const rows=o.rows,cols=o.cols;
+  let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"'+(o.first?' tabSelected="1"':'')+'>';
+  if(o.freeze)x+='<pane xSplit="'+o.freeze.x+'" ySplit="'+o.freeze.y+'" topLeftCell="'+colName(o.freeze.x)+(o.freeze.y+1)+'" activePane="bottomRight" state="frozen"/><selection pane="bottomRight"/>';
+  x+='</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>';
+  cols.forEach((w,i)=>{x+='<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>';});
+  x+='</cols><sheetData>';
+  rows.forEach((cells,ri)=>{
+    if(!cells||!cells.length)return;
+    x+='<row r="'+(ri+1)+'">';
+    cells.forEach((c,ci)=>{
+      if(c===null||c===undefined)return;
+      const ref=colName(ci)+(ri+1);const s=c.s||0;
+      if(c.f!==undefined)x+='<c r="'+ref+'" s="'+s+'"><f>'+xmlEsc(c.f)+'</f><v>'+c.v+'</v></c>';
+      else if(c.v===undefined||c.v==='')x+='<c r="'+ref+'" s="'+s+'"/>';
+      else if(typeof c.v==='number')x+='<c r="'+ref+'" s="'+s+'"><v>'+c.v+'</v></c>';
+      else x+='<c r="'+ref+'" s="'+s+'" t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(c.v)+'</t></is></c>';
+    });
+    x+='</row>';
+  });
+  x+='</sheetData>';
+  if(o.filter)x+='<autoFilter ref="'+o.filter+'"/>';
+  return x+'</worksheet>';
+}
+function buildXlsx(pv,info){
+  const rows=pv.rows,R=pv.rules;const first=5,last=first+rows.length-1;
+  const sh1=[];
+  sh1[0]=[{v:'Txn_Type',s:S.BTXT},{v:info.typesLabel}];
+  sh1[1]=[{v:'Circle',s:S.BTXT},{v:info.circlesLabel}];
+  sh1[2]=[{v:'Sum of Issued_Qty',s:S.TITLE},{s:S.TITLE},{s:S.TITLE},{s:S.TITLE},{v:'Item_Description',s:S.TITLE}];
+  const hdr=['Txn_Date','Circle','SS','Engineer_Name'].concat(ITEMS).concat(['Excess Cat 6','Excess out. Cable','Grand Total']);
+  sh1[3]=hdr.map(h=>({v:h,s:S.HDR}));
+  rows.forEach((r,i)=>{
+    const n=first+i,fill=r.red?S.RED:S.GRN,c=[{v:r.day,s:S.DATE},{v:r.circle},{v:r.store},{v:r.eng}];
+    for(let k=0;k<7;k++)c.push({v:r.q[k]?r.q[k]:'',s:fill});
+    c.push({f:'MAX(0,E'+n+'-'+R.catPerSet+'*MIN(G'+n+',H'+n+'))',v:r.exCat,s:fill});
+    c.push({f:'IF(K'+n+'-'+R.cablePerOnt+'*I'+n+'>'+R.cableTol+',K'+n+'-'+R.cablePerOnt+'*I'+n+',0)',v:r.exCable,s:fill});
+    c.push({f:'SUM(E'+n+':K'+n+')',v:r.total,s:fill});
+    sh1[n-1]=c;
+  });
+  const tn=last+1,tr=[{v:'Grand Total',s:S.BTXT},null,null,null];
+  const T=pv.tot;
+  for(let k=0;k<7;k++){const L=colName(4+k);tr.push({f:'SUM('+L+first+':'+L+last+')',v:T.q[k],s:S.BNUM});}
+  tr.push({f:'SUM(L'+first+':L'+last+')',v:T.exCat,s:S.BNUM});tr.push({f:'SUM(M'+first+':M'+last+')',v:T.exCable,s:S.BNUM});tr.push({f:'SUM(N'+first+':N'+last+')',v:T.grand,s:S.BNUM});
+  sh1[tn-1]=tr;
+  const x1=sheetXml({rows:sh1,cols:[11,10,26,26,9,13,11,13,9,11,13,13,16,13],freeze:{x:4,y:4},first:true,filter:rows.length?'A4:N'+last:null});
+  /* extras sheet */
+  const sh2=[[{v:'Extra issuance – rows that cross the allocation standard',s:S.H1}],[]];
+  sh2[2]=['Txn_Date','Circle','SS','Engineer_Name','Item','Issued','Allowed','Extra'].map(h=>({v:h,s:S.HDR}));
+  pv.extras.forEach((e,i)=>{sh2[3+i]=[{v:e.row.day,s:S.DATE},{v:e.row.circle},{v:e.row.store},{v:e.row.eng},{v:e.item},{v:e.issued,s:S.CTR},{v:e.allowed,s:S.CTR},{v:e.extra,s:S.RED}];});
+  const x2=sheetXml({rows:sh2,cols:[11,10,26,26,24,10,10,10],freeze:{x:0,y:3},filter:pv.extras.length?'A3:H'+(2+pv.extras.length):null});
+  /* store summary */
+  const sh3=[[{v:'Store-wise summary of excess issuance',s:S.H1}],[]];
+  sh3[2]=['SS','Circle','Pivot rows','Red rows','Excess Cat 6','Excess out. Cable','Excess Face Plate','Excess Drop Fiber'].map(h=>({v:h,s:S.HDR}));
+  pv.stores.forEach((s,i)=>{sh3[3+i]=[{v:s.store},{v:s.circle},{v:s.rows,s:S.CTR},{v:s.red,s:S.CTR},{v:s.exCat,s:S.CTR},{v:s.exCable,s:S.CTR},{v:s.exFp,s:S.CTR},{v:s.exDf,s:S.CTR}];});
+  const x3=sheetXml({rows:sh3,cols:[26,10,11,10,14,17,17,17],freeze:{x:0,y:3},filter:pv.stores.length?'A3:H'+(2+pv.stores.length):null});
+  const wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Pivot" sheetId="1" r:id="rId1"/><sheet name="Extra issuance" sheetId="2" r:id="rId2"/><sheet name="Store summary" sheetId="3" r:id="rId3"/></sheets><definedNames>'+(rows.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Pivot!$A$4:$N$'+last+'</definedName>':'')+(pv.extras.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">\'Extra issuance\'!$A$3:$H$'+(2+pv.extras.length)+'</definedName>':'')+(pv.stores.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="2" hidden="1">\'Store summary\'!$A$3:$H$'+(2+pv.stores.length)+'</definedName>':'')+'</definedNames><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>';
+  const wbRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
+  const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  const e=fflate.strToU8;
+  return fflate.zipSync({'[Content_Types].xml':e(ct),'_rels/.rels':e(rels),'xl/workbook.xml':e(wb),'xl/_rels/workbook.xml.rels':e(wbRels),'xl/styles.xml':e(STYLES),'xl/worksheets/sheet1.xml':e(x1),'xl/worksheets/sheet2.xml':e(x2),'xl/worksheets/sheet3.xml':e(x3)},{level:4});
+}
+return{ITEMS,DEFAULT_RULES,classify,processFile,parseLocatorFile,buildPivot,buildXlsx,fmtDay,zipEntries,entryBytes,HAS_NATIVE};
+})();
+</script>
+<script id="app">
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const DEFAULT_LOCATORS=[["21709.SDFX.3010376.Shadowfx","UPE","ATE_Badausa"],["20832.SDFX.3018404.Shadowfx","KER","COK_Thottekattukara"],["21709.SDFX.3010371.Shadowfx","UPE","AME_Amethi"],["215.SDFX.3021538.Shadowfx","RAJ","BAZ_Baran_TH"],["20236.SDFX.3010319.Shadowfx","APTG","BDCR_Bhadrachalam"],["21027.SDFX.3008460.Shadowfx","ROM","BE_Beed"],["215.SDFX.3021475.Shadowfx","RAJ","BER_Beawar_TH"],["253.SDFX.3016913.Shadowfx","BHJ","PNBE_Bihta"],["207.SDFX.3008079.Shadowfx","KK","BLR_DS_Kengeri"],["207.SDFX.3018857.Shadowfx","KK","BLR_Anadapura"],["207.SDFX.3008080.Shadowfx","KK","BLR_Nagasandra"],["207.SDFX.3018904.Shadowfx","KK","BLR_DS_Yelahanka"],["207.SDFX.3004710.Shadowfx","KK","BTJL_Bhatkal_TH"],["211.SDFX.3012726.Shadowfx","MPCG","BZU_Betul"],["21809.SDFX.3023259.Shadowfx","UPW","BTU_Baraut_TH"],["209.SDFX.3015985.Shadowfx","WB","CCU_DS_Belgharia"],["207.SDFX.3018888.Shadowfx","KK","CMGR_Chikmagalur_E"],["207.SDFX.3004707.Shadowfx","KK","CKR_Chikodi_L"],["207.SDFX.3018901.Shadowfx","KK","CMY_Chintamani_TH"],["207.SDFX.3021208.Shadowfx","KK","CPT_Channapatna_TH"],["21027.SDFX.3014248.Shadowfx","ROM","DD_Daund"],["204.SDFX.3005616.Shadowfx","DEL NCR","DEL_Masoodpur"],["20524.SDFX.3023541.Shadowfx","GUJ","NHM_Dahegam"],["215.SDFX.3021476.Shadowfx","RAJ","DHO_Dholpur"],["204.SDFX.3005618.Shadowfx","DEL NCR","DEL_Badli"],["21809.SDFX.3023352.Shadowfx","UPW","DBD_DeobandRD"],["20524.SDFX.3023540.Shadowfx","GUJ","DES_Deesa"],["207.SDFX.3004708.Shadowfx","KK","GKK_Gokak"],["21633.SDFX.3004582.Shadowfx","TN","UKL_Gobichettipalayam"],["256.SDFX.3013211.Shadowfx","ORS","GNPR_Gunupur_TH"],["211.SDFX.3024079.Shadowfx","MPCG","GUX_BhargavaColony"],["209.SDFX.3015990.Shadowfx","WB","HB_Habra_E"],["207.SDFX.3018905.Shadowfx","KK","HYR_Hiriyur"],["207.SDFX.3004704.Shadowfx","KK","HMBD_Humnabad"],["21027.SDFX.3014249.Shadowfx","ROM","HNL_Hingoli"],["20236.SDFX.3006490.Shadowfx","APTG","HYD_Madhuranagar"],["20236.SDFX.3006492.Shadowfx","APTG","HYD_Chengicherla"],["21809.SDFX.3023353.Shadowfx","UPW","JWR_JEWAR_E"],["215.SDFX.3021537.Shadowfx","RAJ","JLWC_Jhalawar_TH"],["256.SDFX.3013212.Shadowfx","ORS","VEJH_Jharsuguda_E"],["20236.SDFX.3013451.Shadowfx","APTG","SKZR_Kagaznagar"],["21027.SDFX.3014250.Shadowfx","ROM","KHH_Khopoli"],["20524.SDFX.3023548.Shadowfx","GUJ","KLL_Kalol_TH"],["20236.SDFX.3010212.Shadowfx","APTG","KMC_Kamareddy"],["207.SDFX.3008081.Shadowfx","KK","MYA_Mandya_E"],["21709.SDFX.3018847.Shadowfx","UPE","CNB_Ramadevi_E"],["20832.SDFX.3018401.Shadowfx","KER","CNN_Kannur_E"],["21027.SDFX.3008458.Shadowfx","ROM","KRJA_Karanja_ODH"],["215.SDFX.3022158.Shadowfx","RAJ","KSG_Kishangarh_TH"],["253.SDFX.3016918.Shadowfx","BHJ","KIR_Katihar_E"],["21805.SDFX.3021217.Shadowfx","UPW","KHMA_Khatima_TH"],["20237.SDFX.3016739.Shadowfx","APTG","KVR_Kovvuru"],["20236.SDFX.3006496.Shadowfx","APTG","KRLA_Korutla"],["21709.SDFX.3010368.Shadowfx","UPE","LKO_Sitapur"],["21709.SDFX.3010370.Shadowfx","UPE","LKO_SarojaniNagar_E"],["21709.SDFX.3010369.Shadowfx","UPE","LKO_GomtiNagar"],["253.SDFX.3016919.Shadowfx","BHJ","LKR_Rampur"],["209.SDFX.3015986.Shadowfx","WB","MBZ_Malbazar"],["21809.SDFX.3023258.Shadowfx","UPW","MTJ_Mathurarefinery"],["20236.SDFX.3006494.Shadowfx","APTG","MBNR_Mahbubnagar_E"],["253.SDFX.3016920.Shadowfx","BHJ","DMH_Madhepura_E"],["21122.SDFX.3012884.Shadowfx","MPCG","MDGR_Manendragarh"],["20236.SDFX.3012305.Shadowfx","APTG","MDK_Medaktowngs"],["20236.SDFX.3012304.Shadowfx","APTG","MABD_Mahabubabad"],["207.SDFX.3018889.Shadowfx","KK","MUDHL_Mudhol"],["21709.SDFX.3010373.Shadowfx","UPE","MBA_Mahoba_TH"],["253.SDFX.3016912.Shadowfx","BHJ","BMKI_Motihari_E"],["207.SDFX.3018894.Shadowfx","KK","MLO_Malur"],["20524.SDFX.3023545.Shadowfx","GUJ","MUND_Mundra"],["20524.SDFX.3023544.Shadowfx","GUJ","MVI_Morbi_E"],["21633.SDFX.3017593.Shadowfx","TN","CHN_Thiruvottriyur"],["20832.SDFX.3018409.Shadowfx","KER","MVP_Kothamangalm"],["207.SDFX.3018895.Shadowfx","KK","NTW_Nanjangud_TH"],["211.SDFX.3024080.Shadowfx","MPCG","NAD_Nagda"],["21027.SDFX.3008455.Shadowfx","ROM","NGP_Wadi_N"],["215.SDFX.3022159.Shadowfx","RAJ","NGO_Nagaur"],["20236.SDFX.3006495.Shadowfx","APTG","NML_Nirmal_TH"],["207.SDFX.3004709.Shadowfx","KK","VV_NIPANI"],["20237.SDFX.3016744.Shadowfx","APTG","NSP_Narasapuram"],["20524.SDFX.3023547.Shadowfx","GUJ","ST_Navsari_E"],["253.SDFX.3016954.Shadowfx","BHJ","PNBE_Patna"],["21027.SDFX.3014252.Shadowfx","ROM","PVR_PandharpurRD_TH"],["21809.SDFX.3023260.Shadowfx","UPW","PBE_Pilibhit"],["20236.SDFX.3010213.Shadowfx","APTG","BDCR_Palvancha"],["21027.SDFX.3014254.Shadowfx","ROM","PNQ_Shahunagar"],["20832.SDFX.3018408.Shadowfx","KER","KTU_Edappal_TH"],["20237.SDFX.3016738.Shadowfx","APTG","PVP_Parvathipuram_TH"],["211.SDFX.3012724.Shadowfx","MPCG","PPI_Pipariya"],["209.SDFX.3015988.Shadowfx","WB","PRR_Purulia"],["21403.SDFX.3017097.Shadowfx","UN-PUN","GSP_Gurdaspur"],["207.SDFX.3008082.Shadowfx","KK","PTTU_Puttur_TH"],["20832.SDFX.3018405.Shadowfx","KER","COK_Perumbavoor"],["21403.SDFX.3017096.Shadowfx","UN-PUN","JGN_Jagraon"],["256.SDFX.3013213.Shadowfx","ORS","RGDA_Rayagada"],["209.SDFX.3015989.Shadowfx","WB","RGJ_Raiganj_TH"],["209.SDFX.3015987.Shadowfx","WB","RHA_Ranaghat_E"],["21709.SDFX.3010377.Shadowfx","UPE","HMP_Rath"],["21122.SDFX.3012885.Shadowfx","MPCG","RJN_Rajnandgaon"],["207.SDFX.3008083.Shadowfx","KK","RMGM_Ramanagara_TH"],["209.SDFX.3015991.Shadowfx","WB","RPH_Rampurhat"],["21709.SDFX.3010374.Shadowfx","UPE","RSR_Rasra_TH"],["21027.SDFX.3008456.Shadowfx","ROM","RN_Ratnagiri_E"],["20236.SDFX.3006489.Shadowfx","APTG","SDPT_Komaticheruvu"],["21709.SDFX.3010378.Shadowfx","UPE","SAN_Sandila"],["211.SDFX.3024081.Shadowfx","MPCG","SEY_Seoni"],["20237.SDFX.3023378.Shadowfx","APTG","KVZ_Kandukuru_ODH"],["207.SDFX.3004703.Shadowfx","KK","SME_DS_Shivamogga"],["253.SDFX.3016914.Shadowfx","BHJ","SOU_Supaul"],["253.SDFX.3016915.Shadowfx","BHJ","SPJ_Samastipur_E"],["20236.SDFX.3010211.Shadowfx","APTG","SPT_Suryapet"],["253.SDFX.3016916.Shadowfx","BHJ","ROH_Madaini"],["211.SDFX.3012725.Shadowfx","MPCG","SAT_Satna"],["21709.SDFX.3010375.Shadowfx","UPE","STP_Lachimanpur"],["20524.SDFX.3023546.Shadowfx","GUJ","ST_Vesu"],["253.SDFX.3016917.Shadowfx","BHJ","SV_Siwan_TH"],["20832.SDFX.3018407.Shadowfx","KER","KZK_Kazhakkoottam_E"],["20832.SDFX.3018410.Shadowfx","KER","TRVL_Thiruvalla"],["20237.SDFX.3016737.Shadowfx","APTG","TEL_Tenali_TH"],["20832.SDFX.3018406.Shadowfx","KER","COK_Ernakulam_E"],["207.SDFX.3008084.Shadowfx","KK","TTR_TIPTUR_E"],["21027.SDFX.3014257.Shadowfx","ROM","UMD_Osmanabad_TH"],["21709.SDFX.3010372.Shadowfx","UPE","UCR_Unchahar_TH"],["215.SDFX.3023477.Shadowfx","RAJ","BHTK_Tonk_TH"],["20237.SDFX.3016740.Shadowfx","APTG","VBL_Bobbili_TH"],["20832.SDFX.3018403.Shadowfx","KER","BDJ_Vadakara"],["21633.SDFX.3017595.Shadowfx","TN","VLR_Vellore_E"],["21027.SDFX.3014258.Shadowfx","ROM","STR_Wai"],["20524.SDFX.3023542.Shadowfx","GUJ","WKR_Wankaner"],["20236.SDFX.3006493.Shadowfx","APTG","Hyd_Alwal"],["D7627.SDFX.3008483.Shadowfx","ROM","BE_Beed"],["28627.SDFX.3008479.Shadowfx","ROM","BE_Beed"],["D7627.SDFX.3008481.Shadowfx","ROM","RN_Ratnagiri_E"],["28627.SDFX.3008477.Shadowfx","ROM","KRJA_Karanja_ODH"],["D7627.SDFX.3008480.Shadowfx","ROM","NGP_Wadi_N"],["28627.SDFX.3008475.Shadowfx","ROM","NGP_Wadi_N"],["D7629.SDFX.3005153.Shadowfx","KK","CKR_Chikodi_L"],["28603.SDFX.3017106.Shadowfx","UN-PUN","JGN_Jagraon"],["28603.SDFX.3017107.Shadowfx","UN-PUN","GSP_Gurdaspur"],["28607.SDFX.3005621.Shadowfx","DEL NCR","DEL_Masoodpur"],["28609.SDFX.3010463.Shadowfx","UPE","LKO_GomtiNagar"],["21027.SDFX.3014255.Shadowfx","ROM","ANG_Rahuri"],["28605.SDFX.3021225.Shadowfx","UPW","KHMA_Khatima_TH"],["28607.SDFX.3005622.Shadowfx","DEL NCR","DEL_Badli"],["28609.SDFX.3010466.Shadowfx","UPE","AME_Amethi"],["28609.SDFX.3010467.Shadowfx","UPE","UCR_Unchahar_TH"],["28609.SDFX.3010468.Shadowfx","UPE","MBA_Mahoba_TH"],["28609.SDFX.3010469.Shadowfx","UPE","RSR_Rasra_TH"],["28609.SDFX.3010470.Shadowfx","UPE","STP_Lachimanpur"],["28609.SDFX.3010488.Shadowfx","UPE","ATE_Badausa"],["28609.SDFX.3010490.Shadowfx","UPE","HMP_Rath"],["28609.SDFX.3010492.Shadowfx","UPE","SAN_Sandila"],["28609.SDFX.3018849.Shadowfx","UPE","SAN_Sandila"],["28609.SDFX.3023359.Shadowfx","UPW","MTJ_Mathurarefinery"],["28609.SDFX.3023360.Shadowfx","UPW","BTU_Baraut_TH"],["28609.SDFX.3023361.Shadowfx","UPW","PBE_Pilibhit"],["28609.SDFX.3023362.Shadowfx","UPW","DBD_DeobandRD"],["28609.SDFX.3023363.Shadowfx","UPW","JWR_JEWAR_E"],["28610.SDFX.3016934.Shadowfx","BHJ","BMKI_Motihari_E"],["28610.SDFX.3016938.Shadowfx","BHJ","ROH_Madaini"],["28619.SDFX.3016001.Shadowfx","WB","CCU_DS_Belgharia"],["D7629.SDFX.3008106.Shadowfx","KK","BLR_DS_Kengeri"],["D7629.SDFX.3008107.Shadowfx","KK","BLR_Nagasandra"],["D7629.SDFX.3008108.Shadowfx","KK","MYA_Mandya_E"],["D7629.SDFX.3018960.Shadowfx","KK","BLR_Anadapura"],["D7629.SDFX.3018965.Shadowfx","KK","NTW_Nanjangud_TH"],["D7629.SDFX.3018970.Shadowfx","KK","BLR_DS_Yelahanka"],["D7629.SDFX.3021211.Shadowfx","KK","CPT_Channapatna_TH"],["21027.SDFX.3014251.Shadowfx","ROM","NSK_Niphad"],["21403.SDFX.3024205.Shadowfx","UN-PUN","CKM_Raikot"],["28603.SDFX.3024207.Shadowfx","UN-PUN","CKM_Raikot"],["28621.SDFX.3013279.Shadowfx","ORS","GNPR_Gunupur_TH"],["28621.SDFX.3013280.Shadowfx","ORS","VEJH_Jharsuguda_E"],["28621.SDFX.3013281.Shadowfx","ORS","RGDA_Rayagada"],["28622.SDFX.3012891.Shadowfx","MPCG","MDGR_Manendragarh"],["28622.SDFX.3012892.Shadowfx","MPCG","RJN_Rajnandgaon"],["28623.SDFX.3012863.Shadowfx","MPCG","SAT_Satna"],["28623.SDFX.3012864.Shadowfx","MPCG","BZU_Betul"],["28623.SDFX.3024085.Shadowfx","MPCG","GUX_BhargavaColony"],["28627.SDFX.3014305.Shadowfx","ROM","UMD_Osmanabad_TH"],["28637.SDFX.3016747.Shadowfx","APTG","VBL_Bobbili_TH"],["D7637.SDFX.3016755.Shadowfx","APTG","VBL_Bobbili_TH"],["28637.SDFX.3016751.Shadowfx","APTG","NSP_Narasapuram"],["D7637.SDFX.3016759.Shadowfx","APTG","NSP_Narasapuram"],["28629.SDFX.3005137.Shadowfx","KK","SME_DS_Shivamogga"],["D7605.SDFX.3021232.Shadowfx","UPW","KHMA_Khatima_TH"],["28627.SDFX.3014266.Shadowfx","ROM","DD_Daund"],["D7632.SDFX.3018426.Shadowfx","KER","COK_Ernakulam_E"],["28632.SDFX.3018416.Shadowfx","KER","COK_Ernakulam_E"],["D7654.SDFX.3023371.Shadowfx","UPW","JWR_JEWAR_E"],["D7654.SDFX.3023368.Shadowfx","UPW","PBE_Pilibhit"],["D7654.SDFX.3023366.Shadowfx","UPW","MTJ_Mathurarefinery"],["28627.SDFX.3014272.Shadowfx","ROM","PNQ_Shahunagar"],["D7627.SDFX.3014384.Shadowfx","ROM","KHH_Khopoli"],["28627.SDFX.3014270.Shadowfx","ROM","PVR_PandharpurRD_TH"],["28629.SDFX.3008097.Shadowfx","KK","BLR_DS_Kengeri"],["28629.SDFX.3008099.Shadowfx","KK","MYA_Mandya_E"],["D7621.SDFX.3013284.Shadowfx","ORS","VEJH_Jharsuguda_E"],["D7621.SDFX.3013285.Shadowfx","ORS","RGDA_Rayagada"],["D7621.SDFX.3013283.Shadowfx","ORS","GNPR_Gunupur_TH"],["D7607.SDFX.3005624.Shadowfx","DEL NCR","DEL_Badli"],["28636.SDFX.3006511.Shadowfx","APTG","NML_Nirmal_TH"],["28636.SDFX.3010324.Shadowfx","APTG","BDCR_Bhadrachalam"],["D7607.SDFX.3005623.Shadowfx","DEL NCR","DEL_Masoodpur"],["D6208.SDFX.3021545.Shadowfx","RAJ","JLWC_Jhalawar_TH"],["D8308.SDFX.3021550.Shadowfx","RAJ","JLWC_Jhalawar_TH"],["D6208.SDFX.3021543.Shadowfx","RAJ","JLWC_Jhalawar_TH"],["D8308.SDFX.3021547.Shadowfx","RAJ","BER_Beawar_TH"],["D8308.SDFX.3021551.Shadowfx","RAJ","BAZ_Baran_TH"],["D6208.SDFX.3021546.Shadowfx","RAJ","BAZ_Baran_TH"],["28624.SDFX.3023593.Shadowfx","GUJ","MUND_Mundra"],["28624.SDFX.3023558.Shadowfx","GUJ","DES_Deesa"],["28624.SDFX.3023559.Shadowfx","GUJ","NHM_Dahegam"],["28624.SDFX.3023595.Shadowfx","GUJ","ST_Navsari_E"],["28624.SDFX.3023596.Shadowfx","GUJ","KLL_Kalol_TH"],["28636.SDFX.3006510.Shadowfx","APTG","MBNR_Mahbubnagar_E"],["28627.SDFX.3008476.Shadowfx","ROM","RN_Ratnagiri_E"],["D7623.SDFX.3012872.Shadowfx","MPCG","SAT_Satna"],["D7610.SDFX.3016948.Shadowfx","BHJ","SPJ_Samastipur_E"],["28623.SDFX.3024088.Shadowfx","MPCG","SEY_Seoni"],["D7623.SDFX.3024091.Shadowfx","MPCG","SEY_Seoni"],["28623.SDFX.3024086.Shadowfx","MPCG","NAD_Nagda"],["D7623.SDFX.3024090.Shadowfx","MPCG","NAD_Nagda"],["28624.SDFX.3023592.Shadowfx","GUJ","MVI_Morbi_E"],["D6208.SDFX.3021544.Shadowfx","RAJ","DHO_Dholpur"],["D6208.SDFX.3023479.Shadowfx","RAJ","BHTK_Tonk_TH"],["D8308.SDFX.3023480.Shadowfx","RAJ","BHTK_Tonk_TH"],["D8308.SDFX.3022164.Shadowfx","RAJ","KSG_Kishangarh_TH"],["D6208.SDFX.3022162.Shadowfx","RAJ","KSG_Kishangarh_TH"],["28627.SDFX.3014273.Shadowfx","ROM","ANG_Rahuri"],["D7627.SDFX.3014390.Shadowfx","ROM","ANG_Rahuri"],["D7609.SDFX.3010487.Shadowfx","UPE","SAN_Sandila"],["D7627.SDFX.3014386.Shadowfx","ROM","PVR_PandharpurRD_TH"],["28629.SDFX.3005142.Shadowfx","KK","VV_NIPANI"],["28629.SDFX.3021210.Shadowfx","KK","CPT_Channapatna_TH"],["28629.SDFX.3005140.Shadowfx","KK","CKR_Chikodi_L"],["28629.SDFX.3018953.Shadowfx","KK","MUDHL_Mudhol"],["D7629.SDFX.3008110.Shadowfx","KK","RMGM_Ramanagara_TH"],["28629.SDFX.3005143.Shadowfx","KK","BTJL_Bhatkal_TH"],["D7629.SDFX.3005147.Shadowfx","KK","CTA_Chitradurga_E"],["28629.SDFX.3008098.Shadowfx","KK","BLR_Nagasandra"],["28629.SDFX.3005141.Shadowfx","KK","GKK_Gokak"],["28629.SDFX.3018957.Shadowfx","KK","BLR_DS_Yelahanka"],["D7629.SDFX.3018962.Shadowfx","KK","CMY_Chintamani_TH"],["28629.SDFX.3008102.Shadowfx","KK","MYA_Mandya_E"],["28629.SDFX.3018950.Shadowfx","KK","CMGR_Chikmagalur_E"],["28629.SDFX.3008101.Shadowfx","KK","RMGM_Ramanagara_TH"],["28629.SDFX.3018955.Shadowfx","KK","NTW_Nanjangud_TH"],["28629.SDFX.3018951.Shadowfx","KK","CMY_Chintamani_TH"],["D7603.SDFX.3024208.Shadowfx","UN-PUN","CKM_Raikot"],["28636.SDFX.3010220.Shadowfx","APTG","BDCR_Palvancha"],["D6208.SDFX.3022163.Shadowfx","RAJ","NGO_Nagaur"],["D8308.SDFX.3022165.Shadowfx","RAJ","NGO_Nagaur"],["28624.SDFX.3023560.Shadowfx","GUJ","WKR_Wankaner"],["28627.SDFX.3014306.Shadowfx","ROM","STR_Wai"],["D7627.SDFX.3014393.Shadowfx","ROM","STR_Wai"],["28627.SDFX.3014267.Shadowfx","ROM","HNL_Hingoli"],["D7627.SDFX.3014399.Shadowfx","ROM","HNL_Hingoli"],["28627.SDFX.3014269.Shadowfx","ROM","NSK_Niphad"],["28636.SDFX.3006505.Shadowfx","APTG","SDPT_Komaticheruvu"],["D7656.SDFX.3016009.Shadowfx","WB","CCU_DS_Belgharia"],["D7623.SDFX.3024089.Shadowfx","MPCG","GUX_BhargavaColony"],["D7623.SDFX.3012874.Shadowfx","MPCG","BZU_Betul"],["28629.SDFX.3008100.Shadowfx","KK","PTTU_Puttur_TH"],["28629.SDFX.3018958.Shadowfx","KK","HYR_Hiriyur"],["28629.SDFX.3018949.Shadowfx","KK","BLR_Anadapura"],["D7629.SDFX.3005157.Shadowfx","KK","CHKE_Challakere"],["D7629.SDFX.3005158.Shadowfx","KK","KSAR_Ilkal"],["28629.SDFX.3005145.Shadowfx","KK","KSAR_Ilkal"],["D7629.SDFX.3005159.Shadowfx","KK","BGK_Jamakhandi"],["28629.SDFX.3005146.Shadowfx","KK","BGK_Jamakhandi"],["28629.SDFX.3018954.Shadowfx","KK","MLO_Malur"],["D7629.SDFX.3005149.Shadowfx","KK","SME_DS_Shivamogga"],["28629.SDFX.3008102.Shadowfx","KK","TTR_TIPTUR_E"],["20237.ECOM.2703690.ECOM-DC","APTG","KVR_Kovvuru"],["21633.SDFX.3004580.Shadowfx","TN","ED_Erode_E"],["21634.SDFX.3017683.Shadowfx","TN","PNY_Ponducherry_E"],["28633.SDFX.3004586.Shadowfx","TN","ED_Erode_E"],["28633.SDFX.3004597.Shadowfx","TN","UKL_Gobichettipalayam"],["28633.SDFX.3017748.Shadowfx","TN","CHN_Thiruvottriyur"],["28634.SDFX.3017684.Shadowfx","TN","PNY_Ponducherry_E"],["D7633.SDFX.3004603.Shadowfx","TN","ED_Erode_E"],["D7633.SDFX.3017753.Shadowfx","TN","CHN_Thiruvottriyur"],["D7634.SDFX.3017685.Shadowfx","TN","PNY_Ponducherry_E"],["207.SDFX.3004706.Shadowfx","KK","BDVT_Bhadravathi"],["D7629.SDFX.3005152.Shadowfx","KK","BDVT_Bhadravathi"],["28629.SDFX.3005139.Shadowfx","KK","BDVT_Bhadravathi"],["207.SDFX.3004711.Shadowfx","KK","CHKE_Challakere"],["28629.SDFX.3005144.Shadowfx","KK","CHKE_Challakere"],["207.SDFX.3004662.Shadowfx","KK","CTA_Chitradurga_E"],["28629.SDFX.3005132.Shadowfx","KK","CTA_Chitradurga_E"],["207.SDFX.3012373.Shadowfx","KK","BLR_Hoskote"],["D7629.SDFX.3012412.Shadowfx","KK","BLR_Hoskote"],["28629.SDFX.3012409.Shadowfx","KK","BLR_Hoskote"],["207.SDFX.3004712.Shadowfx","KK","KSAR_Ilkal"],["207.SDFX.3004713.Shadowfx","KK","BGK_Jamakhandi"],["207.SDFX.3018903.Shadowfx","KK","BLR_DS_Sarjapur"],["D7629.SDFX.3018966.Shadowfx","KK","BLR_DS_Sarjapur"],["28629.SDFX.3018956.Shadowfx","KK","BLR_DS_Sarjapur"],["207.SDFX.3004705.Shadowfx","KK","SNNR_Sindhanur"],["D7629.SDFX.3005151.Shadowfx","KK","SNNR_Sindhanur"],["28629.SDFX.3005138.Shadowfx","KK","SNNR_Sindhanur"],["D7629.SDFX.3008111.Shadowfx","KK","TTR_TIPTUR_E"],["D7633.SDFX.3004636.Shadowfx","TN","UKL_Gobichettipalayam"],["28632.SDFX.3018415.Shadowfx","KER","COK_Perumbavoor"],["28632.SDFX.3018417.Shadowfx","KER","KZK_Kazhakkoottam_E"],["28632.SDFX.3018418.Shadowfx","KER","KTU_Edappal_TH"],["28632.SDFX.3018419.Shadowfx","KER","MVP_Kothamangalm"],["28632.SDFX.3018421.Shadowfx","KER","TRVL_Thiruvalla"],["28633.SDFX.3022701.Shadowfx","TN","CBE_Velandipalayam_N"],["28636.SDFX.3006506.Shadowfx","APTG","HYD_Madhuranagar"],["28636.SDFX.3006509.Shadowfx","APTG","Hyd_Alwal"],["28636.SDFX.3010219.Shadowfx","APTG","KMC_Kamareddy"],["28636.SDFX.3012307.Shadowfx","APTG","MDK_Medaktowngs"],["28636.SDFX.3013452.Shadowfx","APTG","SKZR_Kagaznagar"],["D7609.SDFX.3010478.Shadowfx","UPE","LKO_GomtiNagar"],["D7609.SDFX.3010480.Shadowfx","UPE","AME_Amethi"],["D7609.SDFX.3010481.Shadowfx","UPE","UCR_Unchahar_TH"],["D7609.SDFX.3010482.Shadowfx","UPE","MBA_Mahoba_TH"],["D7609.SDFX.3010486.Shadowfx","UPE","HMP_Rath"],["D7610.SDFX.3016944.Shadowfx","BHJ","PNBE_Patna"],["D7610.SDFX.3016946.Shadowfx","BHJ","PNBE_Bihta"],["D7610.SDFX.3016949.Shadowfx","BHJ","ROH_Madaini"],["D7610.SDFX.3016951.Shadowfx","BHJ","KIR_Katihar_E"],["D7624.SDFX.3023603.Shadowfx","GUJ","MUND_Mundra"],["D7633.SDFX.3022702.Shadowfx","TN","CBE_Velandipalayam_N"],["D7629.SDFX.3005154.Shadowfx","KK","GKK_Gokak"],["D7629.SDFX.3008109.Shadowfx","KK","PTTU_Puttur_TH"],["D7629.SDFX.3005155.Shadowfx","KK","VV_NIPANI"],["D7636.SDFX.3006500.Shadowfx","APTG","HYD_Chengicherla"],["D7636.SDFX.3006501.Shadowfx","APTG","Hyd_Alwal"],["D7632.SDFX.3018427.Shadowfx","KER","KZK_Kazhakkoottam_E"],["D7610.SDFX.3016952.Shadowfx","BHJ","LKR_Rampur"],["D7609.SDFX.3018850.Shadowfx","UPE","CNB_Ramadevi_E"],["28610.SDFX.3016937.Shadowfx","BHJ","SPJ_Samastipur_E"],["D7636.SDFX.3013453.Shadowfx","APTG","SKZR_Kagaznagar"],["D7623.SDFX.3012871.Shadowfx","MPCG","PPI_Pipariya"],["D7627.SDFX.3014388.Shadowfx","ROM","PNQ_Shahunagar"],["D7632.SDFX.3018423.Shadowfx","KER","BDJ_Vadakara"],["D7632.SDFX.3018425.Shadowfx","KER","COK_Perumbavoor"],["D7632.SDFX.3018428.Shadowfx","KER","KTU_Edappal_TH"],["D7632.SDFX.3018430.Shadowfx","KER","TRVL_Thiruvalla"],["D7636.SDFX.3006498.Shadowfx","APTG","HYD_Madhuranagar"],["D7636.SDFX.3012309.Shadowfx","APTG","MDK_Medaktowngs"],["D7656.SDFX.3016045.Shadowfx","WB","RPH_Rampurhat"],["D7609.SDFX.3010485.Shadowfx","UPE","ATE_Badausa"],["D7624.SDFX.3023599.Shadowfx","GUJ","NHM_Dahegam"],["21709.SDFX.3022712.Shadowfx","UPE","NUTW_Nautanwa_E"],["D7654.SDFX.3023370.Shadowfx","UPW","DBD_DeobandRD"],["28636.SDFX.3006512.Shadowfx","APTG","KRLA_Korutla"],["D7656.SDFX.3016042.Shadowfx","WB","PRR_Purulia"],["28609.SDFX.3022729.Shadowfx","UPE","NUTW_Nautanwa_E"],["D7636.SDFX.3006502.Shadowfx","APTG","MBNR_Mahbubnagar_E"],["D7636.SDFX.3010328.Shadowfx","APTG","BDCR_Bhadrachalam"],["28623.SDFX.3012862.Shadowfx","MPCG","PPI_Pipariya"],["28636.SDFX.3012306.Shadowfx","APTG","MABD_Mahabubabad"],["28609.SDFX.3010465.Shadowfx","UPE","LKO_SarojaniNagar_E"],["28609.SDFX.3010462.Shadowfx","UPE","LKO_Sitapur"],["D7632.SDFX.3018422.Shadowfx","KER","CNN_Kannur_E"],["28632.SDFX.3018412.Shadowfx","KER","CNN_Kannur_E"],["D7610.SDFX.3016947.Shadowfx","BHJ","SOU_Supaul"],["D7610.SDFX.3016950.Shadowfx","BHJ","SV_Siwan_TH"],["D7610.SDFX.3016953.Shadowfx","BHJ","DMH_Madhepura_E"],["28636.SDFX.3006508.Shadowfx","APTG","HYD_Chengicherla"],["28636.SDFX.3010217.Shadowfx","APTG","SPT_Suryapet"],["D7624.SDFX.3023600.Shadowfx","GUJ","WKR_Wankaner"],["28610.SDFX.3016935.Shadowfx","BHJ","PNBE_Bihta"],["28627.SDFX.3014268.Shadowfx","ROM","KHH_Khopoli"],["D7627.SDFX.3008482.Shadowfx","ROM","KRJA_Karanja_ODH"],["D7627.SDFX.3014383.Shadowfx","ROM","DD_Daund"],["D7627.SDFX.3014392.Shadowfx","ROM","UMD_Osmanabad_TH"],["D7632.SDFX.3018424.Shadowfx","KER","COK_Thottekattukara"],["D7610.SDFX.3016945.Shadowfx","BHJ","BMKI_Motihari_E"],["28632.SDFX.3018414.Shadowfx","KER","COK_Thottekattukara"],["D7624.SDFX.3023598.Shadowfx","GUJ","DES_Deesa"],["21633.SDFX.3022700.Shadowfx","TN","CBE_Velandipalayam_N"],["D7624.SDFX.3023606.Shadowfx","GUJ","KLL_Kalol_TH"],["21709.SDFX.3022711.Shadowfx","UPE","JNU_Jaunpur_E"],["28609.SDFX.3022728.Shadowfx","UPE","JNU_Jaunpur_E"],["D7629.SDFX.3005156.Shadowfx","KK","BTJL_Bhatkal_TH"],["D7636.SDFX.3010215.Shadowfx","APTG","KMC_Kamareddy"],["D7636.SDFX.3006504.Shadowfx","APTG","KRLA_Korutla"],["D7636.SDFX.3012308.Shadowfx","APTG","MABD_Mahabubabad"],["D7636.SDFX.3006503.Shadowfx","APTG","NML_Nirmal_TH"],["28632.SDFX.3018413.Shadowfx","KER","BDJ_Vadakara"],["D7632.SDFX.3018429.Shadowfx","KER","MVP_Kothamangalm"],["D7636.SDFX.3006497.Shadowfx","APTG","SDPT_Komaticheruvu"],["D7636.SDFX.3010214.Shadowfx","APTG","SPT_Suryapet"],["D7629.SDFX.3018964.Shadowfx","KK","MUDHL_Mudhol"],["D7629.SDFX.3018961.Shadowfx","KK","CMGR_Chikmagalur_E"],["28619.SDFX.3016003.Shadowfx","WB","RHA_Ranaghat_E"],["28619.SDFX.3016004.Shadowfx","WB","PRR_Purulia"],["28619.SDFX.3016005.Shadowfx","WB","RGJ_Raiganj_TH"],["28619.SDFX.3016002.Shadowfx","WB","MBZ_Malbazar"],["28619.SDFX.3016007.Shadowfx","WB","RPH_Rampurhat"],["28619.SDFX.3016006.Shadowfx","WB","HB_Habra_E"],["D7603.SDFX.3017111.Shadowfx","UN-PUN","JGN_Jagraon"],["D7603.SDFX.3017112.Shadowfx","UN-PUN","GSP_Gurdaspur"],["D7609.SDFX.3010484.Shadowfx","UPE","STP_Lachimanpur"],["D7609.SDFX.3010483.Shadowfx","UPE","RSR_Rasra_TH"],["D7654.SDFX.3023367.Shadowfx","UPW","BTU_Baraut_TH"],["D7624.SDFX.3023605.Shadowfx","GUJ","ST_Navsari_E"],["D7622.SDFX.3012895.Shadowfx","MPCG","RJN_Rajnandgaon"],["28610.SDFX.3016939.Shadowfx","BHJ","SV_Siwan_TH"],["256.SDFX.3028181.Shadowfx","ORS","BMP_Berhampur_E"],["256.SDFX.3028182.Shadowfx","ORS","BLS_Balasore_TH"],["28610.SDFX.3016936.Shadowfx","BHJ","SOU_Supaul"],["28621.SDFX.3028185.Shadowfx","ORS","BMP_Berhampur_E"],["28621.SDFX.3028186.Shadowfx","ORS","BLS_Balasore_TH"],["D7621.SDFX.3028247.Shadowfx","ORS","BMP_Berhampur_E"],["D7621.SDFX.3028248.Shadowfx","ORS","BLS_Balasore_TH"],["D7656.SDFX.3016010.Shadowfx","WB","MBZ_Malbazar"],["D7656.SDFX.3016011.Shadowfx","WB","RHA_Ranaghat_E"],["D7656.SDFX.3016043.Shadowfx","WB","RGJ_Raiganj_TH"],["D7656.SDFX.3016044.Shadowfx","WB","HB_Habra_E"],["D7622.SDFX.3025386.Shadowfx","MPCG","MSMD_Mahasamund"],["28622.SDFX.3025384.Shadowfx","MPCG","MSMD_Mahasamund"],["28633.SDFX.3017750.Shadowfx","TN","VLR_Vellore_E"],["D7622.SDFX.3012894.Shadowfx","MPCG","MDGR_Manendragarh"],["D7624.SDFX.3023602.Shadowfx","GUJ","MVI_Morbi_E"],["D7627.SDFX.3014385.Shadowfx","ROM","NSK_Niphad"],["21122.SDFX.3025383.Shadowfx","MPCG","MSMD_Mahasamund"],["D7629.SDFX.3018969.Shadowfx","KK","MLO_Malur"],["28610.SDFX.3016941.Shadowfx","BHJ","LKR_Rampur"],["209.SDFX.3028778.Shadowfx","WB","GRMP_Gangarampur_TH"],["28619.SDFX.3028780.Shadowfx","WB","GRMP_Gangarampur_TH"],["D7629.SDFX.3018971.Shadowfx","KK","HYR_Hiriyur"],["D7609.SDFX.3022738.Shadowfx","UPE","NUTW_Nautanwa_E"],["D7609.SDFX.3022736.Shadowfx","UPE","JNU_Jaunpur_E"],["21709.SDFX.3022708.Shadowfx","UPE","CNB_Rawatpur"],["21709.SDFX.3022709.Shadowfx","UPE","ON_Unnao"],["28609.SDFX.3022726.Shadowfx","UPE","CNB_Rawatpur"],["28609.SDFX.3022727.Shadowfx","UPE","ON_Unnao"],["D7609.SDFX.3022734.Shadowfx","UPE","CNB_Rawatpur"],["21709.SDFX.3022707.Shadowfx","UPE","CNB_Gumti"],["28609.SDFX.3022724.Shadowfx","UPE","CNB_Gumti"],["D7636.SDFX.3010216.Shadowfx","APTG","BDCR_Palvancha"],["D7609.SDFX.3022733.Shadowfx","UPE","CNB_Gumti"],["D7609.SDFX.3010477.Shadowfx","UPE","LKO_Sitapur"],["D7609.SDFX.3022735.Shadowfx","UPE","ON_Unnao"],["21633.SDFX.3004579.Shadowfx","TN","KMU_Kumbakonam_E"],["28633.SDFX.3004585.Shadowfx","TN","KMU_Kumbakonam_E"],["20524.SDFX.3032362.Shadowfx","GUJ","MDSA_Modasa"],["20524.SDFX.3032470.Shadowfx","GUJ","HLL_Halol"],["28624.SDFX.3032372.Shadowfx","GUJ","MDSA_Modasa"],["D7633.SDFX.3004602.Shadowfx","TN","KMU_Kumbakonam_E"],["D7633.SDFX.3017755.Shadowfx","TN","VLR_Vellore_E"],["20524.SDFX.3032360.Shadowfx","GUJ","GDA_Godhara"],["253.SDFX.3030098.Shadowfx","BHJ","DOS_Rohtas"],["253.SDFX.3030099.Shadowfx","BHJ","RXL_Raxaul_TH"],["253.SDFX.3030100.Shadowfx","BHJ","KSTA_Sherghati"],["253.SDFX.3033675.Shadowfx","BHJ","BRN_Barauni_TH"],["25320.SDFX.3017026.Shadowfx","BHJ","CBSA_Chaibasa_TH"],["25320.SDFX.3017027.Shadowfx","BHJ","GRD_Giridih_TH"],["28610.SDFX.3016942.Shadowfx","BHJ","DMH_Madhepura_E"],["28610.SDFX.3030214.Shadowfx","BHJ","DOS_Rohtas"],["28610.SDFX.3030215.Shadowfx","BHJ","RXL_Raxaul_TH"],["28610.SDFX.3030216.Shadowfx","BHJ","KSTA_Sherghati"],["28610.SDFX.3033679.Shadowfx","BHJ","BRN_Barauni_TH"],["28620.SDFX.3017062.Shadowfx","BHJ","CBSA_Chaibasa_TH"],["28620.SDFX.3017063.Shadowfx","BHJ","GRD_Giridih_TH"],["28624.SDFX.3032368.Shadowfx","GUJ","GDA_Godhara"],["28624.SDFX.3032369.Shadowfx","GUJ","HLL_Halol"],["28632.SDFX.3032070.Shadowfx","KER","CLT_PallikkalBazar"],["D7610.SDFX.3030217.Shadowfx","BHJ","DOS_Rohtas"],["D7610.SDFX.3030218.Shadowfx","BHJ","RXL_Raxaul_TH"],["D7610.SDFX.3033681.Shadowfx","BHJ","BRN_Barauni_TH"],["28627.SDFX.3033666.Shadowfx","ROM","BOM_Ambernath"],["204.SDFX.3034434.Shadowfx","DEL NCR","DEL_Okhla"],["204.SDFX.3034436.Shadowfx","DEL NCR","DEL_ Naraina"],["21027.SDFX.3033594.Shadowfx","ROM","BOM_Ambernath"],["28610.SDFX.3016940.Shadowfx","BHJ","KIR_Katihar_E"],["28627.SDFX.3033603.Shadowfx","ROM","KOP_DS_MangalwarPeth"],["28627.SDFX.3033604.Shadowfx","ROM","NGP_DS_Wardhman"],["28627.SDFX.3033665.Shadowfx","ROM","HTK_DS_Sangli"],["204.SDFX.3034435.Shadowfx","DEL NCR","DEL_Bawana"],["21027.SDFX.3033591.Shadowfx","ROM","KOP_DS_MangalwarPeth"],["21027.SDFX.3033592.Shadowfx","ROM","NGP_DS_Wardhman"],["21027.SDFX.3033593.Shadowfx","ROM","HTK_DS_Sangli"],["D7607.SDFX.3034570.Shadowfx","DEL NCR","DEL_Bawana"],["28627.SDFX.3014274.Shadowfx","ROM","AWB_Sillod"],["D7607.SDFX.3034572.Shadowfx","DEL NCR","DEL_ Naraina"],["D7620.SDFX.3017066.Shadowfx","BHJ","GRD_Giridih_TH"],["D7656.SDFX.3028777.Shadowfx","WB","GRMP_Gangarampur_TH"],["28637.SDFX.3016750.Shadowfx","APTG","VKN_Vinukonda"],["21027.SDFX.3014256.Shadowfx","ROM","AWB_Sillod"],["28607.SDFX.3034565.Shadowfx","DEL NCR","DEL_Bawana"],["28607.SDFX.3034566.Shadowfx","DEL NCR","DEL_ Naraina"],["28637.SDFX.3016749.Shadowfx","APTG","PUA_Jangredygudem"],["28637.SDFX.3016760.Shadowfx","APTG","KVR_Kovvuru"],["D7637.SDFX.3016753.Shadowfx","APTG","PVP_Parvathipuram_TH"],["D7637.SDFX.3016758.Shadowfx","APTG","VKN_Vinukonda"],["211.SDFX.3034882.Shadowfx","MPCG","MDS_DS_Mandsaur"],["21633.SDFX.3035832.Shadowfx","TN","MDU_DS_Sellur"],["28622.SDFX.3034855.Shadowfx","MPCG","BAP_DS_Bilaspur"],["28623.SDFX.3034865.Shadowfx","MPCG","HBD_DS_Narmadapuram"],["28623.SDFX.3034868.Shadowfx","MPCG","MDS_DS_Mandsaur"],["28633.SDFX.3035935.Shadowfx","TN","MDU_DS_Sellur"],["D7633.SDFX.3035943.Shadowfx","TN","MDU_DS_Sellur"],["D7610.SDFX.3030219.Shadowfx","BHJ","KSTA_Sherghati"],["D7620.SDFX.3017065.Shadowfx","BHJ","CBSA_Chaibasa_TH"],["D7624.SDFX.3032374.Shadowfx","GUJ","HLL_Halol"],["D7624.SDFX.3032466.Shadowfx","GUJ","MDSA_Modasa"],["D7623.SDFX.3034797.Shadowfx","MPCG","IDR_DS_Tilaknagar"],["D7623.SDFX.3034798.Shadowfx","MPCG","HBD_DS_Narmadapuram"],["D7623.SDFX.3034801.Shadowfx","MPCG","MDS_DS_Mandsaur"],["211.SDFX.3034878.Shadowfx","MPCG","IDR_DS_Tilaknagar"],["211.SDFX.3034881.Shadowfx","MPCG","RTM_DS_Ratlam"],["21122.SDFX.3034850.Shadowfx","MPCG","BIA_DS_Bhilai"],["28622.SDFX.3034854.Shadowfx","MPCG","BIA_DS_Bhilai"],["28623.SDFX.3034804.Shadowfx","MPCG","IDR_DS_Tilaknagar"],["28623.SDFX.3034867.Shadowfx","MPCG","RTM_DS_Ratlam"],["211.SDFX.3034879.Shadowfx","MPCG","HBD_DS_Narmadapuram"],["D7623.SDFX.3034800.Shadowfx","MPCG","RTM_DS_Ratlam"],["21633.SDFX.3037933.Shadowfx","TN","CBE_DS_Comibatore"],["D7633.SDFX.3037935.Shadowfx","TN","CBE_DS_Comibatore"],["28633.SDFX.3037938.Shadowfx","TN","CBE_DS_Comibatore"],["D7622.SDFX.3034858.Shadowfx","MPCG","BAP_DS_Bilaspur"],["D7627.SDFX.3033670.Shadowfx","ROM","NGP_DS_Wardhman"],["D7627.SDFX.3033671.Shadowfx","ROM","HTK_DS_Sangli"],["D7627.SDFX.3014391.Shadowfx","ROM","AWB_Sillod"],["21122.SDFX.3034851.Shadowfx","MPCG","BAP_DS_Bilaspur"],["258.SDFX.3036658.Shadowfx","NESA","SCL_DS_Silchar"],["258.SDFX.3036659.Shadowfx","NESA","GLG_Golaghat_E"],["28618.SDFX.3036661.Shadowfx","NESA","SCL_DS_Silchar"],["28618.SDFX.3036662.Shadowfx","NESA","GLG_Golaghat_E"],["28637.SDFX.3016746.Shadowfx","APTG","PVP_Parvathipuram_TH"],["D7627.SDFX.3033669.Shadowfx","ROM","KOP_DS_MangalwarPeth"],["28637.SDFX.3023380.Shadowfx","APTG","KVZ_Kandukuru_ODH"],["28623.SDFX.3034866.Shadowfx","MPCG","BPL_DS_Chunabhatti"],["D7627.SDFX.3033672.Shadowfx","ROM","BOM_Ambernath"],["215.SDFX.3037897.Shadowfx","RAJ","JDP_DS_MahaveerNagar"],["215.SDFX.3037898.Shadowfx","RAJ","BTE_DS_Bharatpur"],["215.SDFX.3037899.Shadowfx","RAJ","KOT_DS_Kota"],["215.SDFX.3037901.Shadowfx","RAJ","Jai_DS_ShastriNagar"],["215.SDFX.3037904.Shadowfx","RAJ","UDR_DS_KhedaCircle"],["215.SDFX.3037905.Shadowfx","RAJ","Jai_DS_KarniVihar"],["D6208.SDFX.3037908.Shadowfx","RAJ","JDP_DS_MahaveerNagar"],["D6208.SDFX.3037909.Shadowfx","RAJ","BTE_DS_Bharatpur"],["D6208.SDFX.3037910.Shadowfx","RAJ","KOT_DS_Kota"],["D6208.SDFX.3037911.Shadowfx","RAJ","Jai_DS_ShastriNagar"],["D6208.SDFX.3037913.Shadowfx","RAJ","UDR_DS_KhedaCircle"],["D6208.SDFX.3037916.Shadowfx","RAJ","Jai_DS_KarniVihar"],["D7623.SDFX.3034799.Shadowfx","MPCG","BPL_DS_Chunabhatti"],["D8308.SDFX.3037918.Shadowfx","RAJ","JDP_DS_MahaveerNagar"],["D8308.SDFX.3037920.Shadowfx","RAJ","BTE_DS_Bharatpur"],["D8308.SDFX.3037922.Shadowfx","RAJ","KOT_DS_Kota"],["D8308.SDFX.3037923.Shadowfx","RAJ","Jai_DS_ShastriNagar"],["D8308.SDFX.3037927.Shadowfx","RAJ","UDR_DS_KhedaCircle"],["D8308.SDFX.3037929.Shadowfx","RAJ","Jai_DS_KarniVihar"],["D8308.SDFX.3037925.Shadowfx","RAJ","PTRD_DS_Bhiwadi"],["D6208.SDFX.3037912.Shadowfx","RAJ","PTRD_DS_Bhiwadi"],["215.SDFX.3037902.Shadowfx","RAJ","PTRD_DS_Bhiwadi"],["20832.SDFX.3032069.Shadowfx","KER","CLT_PallikkalBazar"],["211.SDFX.3034880.Shadowfx","MPCG","BPL_DS_Chunabhatti"],["20237.SDFX.3016743.Shadowfx","APTG","VKN_Vinukonda"],["20606.SDFX.3042130.Shadowfx","UN-HAR","YJUD_DS_Yamunagar"],["28606.SDFX.3042138.Shadowfx","UN-HAR","YJUD_DS_Yamunagar"],["D7622.SDFX.3034857.Shadowfx","MPCG","BIA_DS_Bhilai"],["20237.SDFX.3016742.Shadowfx","APTG","PUA_Jangredygudem"],["20606.SDFX.3042127.Shadowfx","UN-HAR","KKDE_DS_Kurukshetra"],["20832.SDFX.3040817.Shadowfx","KER","COK_DS_Cochin"],["28606.SDFX.3042137.Shadowfx","UN-HAR","KKDE_DS_Kurukshetra"],["28632.SDFX.3040819.Shadowfx","KER","COK_DS_Cochin"],["D7618.SDFX.3036664.Shadowfx","NESA","SCL_DS_Silchar"],["24122.SDFX.3034853.Shadowfx","MPCG","BAP_DS_Bilaspur"],["D7606.SDFX.3042139.Shadowfx","UN-HAR","KKDE_DS_Kurukshetra"],["D7606.SDFX.3042141.Shadowfx","UN-HAR","YJUD_DS_Yamunagar"],["D8308.SDFX.3021548.Shadowfx","RAJ","DHO_Dholpur"],["D7618.SDFX.3036666.Shadowfx","NESA","TZTB_Tezpur_E"],["D7637.SDFX.3016754.Shadowfx","APTG","KVR_Kovvuru"],["258.SDFX.3036660.Shadowfx","NESA","TZTB_Tezpur_E"],["28618.SDFX.3036663.Shadowfx","NESA","TZTB_Tezpur_E"],["D7618.SDFX.3036665.Shadowfx","NESA","GLG_Golaghat_E"],["21709.SDFX.3043629.Shadowfx","UPE","BLTR_Belthararoad_E"],["21709.SDFX.3043630.Shadowfx","UPE","JHS_DS_Jhansi"],["21709.SDFX.3043631.Shadowfx","UPE","LAR_Lalitpur_TH"],["21709.SDFX.3043632.Shadowfx","UPE","SLN_Sultanpur_TH"],["28609.SDFX.3043633.Shadowfx","UPE","BLTR_Belthararoad_E"],["28609.SDFX.3043634.Shadowfx","UPE","JHS_DS_Jhansi"],["28609.SDFX.3043635.Shadowfx","UPE","LAR_Lalitpur_TH"],["28609.SDFX.3043636.Shadowfx","UPE","SLN_Sultanpur_TH"],["28623.SDFX.3044607.Shadowfx","MPCG","GWL_DS_Gwalior"],["D7623.SDFX.3044608.Shadowfx","MPCG","GWL_DS_Gwalior"],["D7637.SDFX.3016752.Shadowfx","APTG","TEL_Tenali_TH"],["D7637.SDFX.3016757.Shadowfx","APTG","PUA_Jangredygudem"],["28627.SDFX.3033668.Shadowfx","ROM","AK_DS_Akola"],["21027.SDFX.3033595.Shadowfx","ROM","AK_DS_Akola"],["D7627.SDFX.3033673.Shadowfx","ROM","AK_DS_Akola"],["28637.SDFX.3016745.Shadowfx","APTG","TEL_Tenali_TH"],["21027.SDFX.3042464.Shadowfx","ROM","ANG_DS_Savedi"],["211.SDFX.3044605.Shadowfx","MPCG","GWL_DS_Gwalior"],["28627.SDFX.3043996.Shadowfx","ROM","ANG_DS_Savedi"],["D7609.SDFX.3043638.Shadowfx","UPE","JHS_DS_Jhansi"],["D7609.SDFX.3043639.Shadowfx","UPE","LAR_Lalitpur_TH"],["21633.SDFX.3046840.Shadowfx","TN","CHN_DS_Avadi"],["28633.SDFX.3047025.Shadowfx","TN","CHN_DS_Avadi"],["D7632.SDFX.3040820.Shadowfx","KER","COK_DS_Cochin"],["D7633.SDFX.3047029.Shadowfx","TN","CHN_DS_Avadi"],["D7627.SDFX.3043999.Shadowfx","ROM","ANG_DS_Savedi"],["D7609.SDFX.3010479.Shadowfx","UPE","LKO_SarojaniNagar_E"],["D7609.SDFX.3043640.Shadowfx","UPE","SLN_Sultanpur_TH"],["D7609.SDFX.3043637.Shadowfx","UPE","BLTR_Belthararoad_E"],["21403.SDFX.3048597.Shadowfx","UN-HAR","HAR_DS_Panchkula"],["28603.SDFX.3048600.Shadowfx","UN-HAR","HAR_DS_Panchkula"],["D7603.SDFX.3048602.Shadowfx","UN-HAR","HAR_DS_Panchkula"],["24108.SDFX.3052565.Shadowfx","RAJ","JDP_DS_MahaveerNagar"],["254.SDFX.3054335.Shadowfx","UN-HP","KRLI_Nalagarh_E"],["28602.SDFX.3054337.Shadowfx","UN-HP","KRLI_Nalagarh_E"],["204.SDFX.2993793.Shadowfx","DEL NCR","DEL_Najafgarh"],["24122.SDFX.3034852.Shadowfx","MPCG","BIA_DS_Bhilai"],["207.SDFX.3004663.Shadowfx","KK","BLR_DS_JPNagar"],["D7629.SDFX.3005148.Shadowfx","KK","BLR_DS_JPNagar"],["28629.SDFX.3005135.Shadowfx","KK","BLR_DS_JPNagar"],["28610.SDFX.3016933.Shadowfx","BHJ","PNBE_Patna"],["21633.SDFX.3058168.Shadowfx","TN","CHN_Padur"],["D7633.SDFX.3058180.Shadowfx","TN","CHN_Padur"],["25320.SDFX.3052241.Shadowfx","BHJ","IXR_DS_Ranchi"],["D7620.SDFX.3052283.Shadowfx","BHJ","IXR_DS_Ranchi"],["28605.SDFX.3044877.Shadowfx","UPW","HRD_Tibriroad_N"],["D7605.SDFX.3044881.Shadowfx","UPW","HRD_Tibriroad_N"],["21805.SDFX.3044874.Shadowfx","UPW","HRD_Tibriroad_N"],["D7605.SDFX.3044878.Shadowfx","UPW","RSK_Rishikesh_E"],["21805.SDFX.3044872.Shadowfx","UPW","RSK_Rishikesh_E"],["28605.SDFX.3044876.Shadowfx","UPW","RSK_Rishikesh_E"],["21709.SDFX.3060421.Shadowfx","UPE","BBK_Barabanki_TH"],["D7609.SDFX.3060425.Shadowfx","UPE","BBK_Barabanki_TH"],["215.SDFX.3064345.Shadowfx","RAJ","Jai_DS_Muralipura"],["D8308.SDFX.3064349.Shadowfx","RAJ","Jai_DS_Muralipura"],["21633.SDFX.3058170.Shadowfx","TN","CDD_Cuddalore_TH"],["D7633.SDFX.3058182.Shadowfx","TN","CDD_Cuddalore_TH"],["24106.SDFX.3042131.Shadowfx","UN-HAR","YJUD_DS_Yamunagar"],["20606.SDFX.3069129.Shadowfx","UN-HAR","JIND_Jind_E"],["20606.SDFX.3069130.Shadowfx","UN-HAR","PWL_Palwal_E"],["28606.SDFX.3069131.Shadowfx","UN-HAR","JIND_Jind_E"],["28620.SDFX.3052279.Shadowfx","BHJ","IXR_DS_Ranchi"],["28606.SDFX.3069132.Shadowfx","UN-HAR","PWL_Palwal_E"],["D7602.SDFX.3054338.Shadowfx","UN-HP","KRLI_Nalagarh_E"],["28609.SDFX.3060423.Shadowfx","UPE","BBK_Barabanki_TH"],["21633.SDFX.3037934.Shadowfx","TN","NCJ_Paruthivilai"],["28633.SDFX.3058176.Shadowfx","TN","CDD_Cuddalore_TH"],["D7606.SDFX.3069135.Shadowfx","UN-HAR","JIND_Jind_E"],["D7606.SDFX.3069136.Shadowfx","UN-HAR","PWL_Palwal_E"],["28633.SDFX.3058174.Shadowfx","TN","CHN_Padur"],["D7633.SDFX.3037936.Shadowfx","TN","NCJ_Paruthivilai"],["D6208.SDFX.3064347.Shadowfx","RAJ","Jai_DS_Muralipura"],["21633.SDFX.3084059.Shadowfx","TN","CBE_DS_Kalapatti"],["21633.SDFX.3084122.Shadowfx","TN","CBE_DS_Podanur"],["21027.SDFX.3084809.Shadowfx","ROM","VAGD_Gondia_TH"],["D7627.SDFX.3084846.Shadowfx","ROM","VAGD_Gondia_TH"],["21027.SDFX.3084810.Shadowfx","ROM","PNQ_Shirur"],["D7627.SDFX.3084847.Shadowfx","ROM","PNQ_Shirur"],["D7633.SDFX.3084067.Shadowfx","TN","CBE_DS_Kalapatti"],["D7633.SDFX.3084068.Shadowfx","TN","CBE_DS_Podanur"],["28633.SDFX.3037939.Shadowfx","TN","NCJ_Paruthivilai"],["21027.SDFX.3081056.Shadowfx","ROM","MGVK_Malegaon_TH"],["D7633.SDFX.3084866.Shadowfx","TN","TTP_Thiruthuraipoondi"],["21633.SDFX.3084856.Shadowfx","TN","PKT_Pattukkottai_TH"],["D7633.SDFX.3084879.Shadowfx","TN","WJ_Walajabad"],["D7633.SDFX.3084873.Shadowfx","TN","TNJ_Ayyampettai"],["21633.SDFX.3084857.Shadowfx","TN","SXV_Mohammed pura"],["21633.SDFX.3084859.Shadowfx","TN","TNJ_Ayyampettai"],["D7633.SDFX.3084876.Shadowfx","TN","TNM_Tiruvannamalai_TH"],["21633.SDFX.3084862.Shadowfx","TN","TNM_Tiruvannamalai_TH"],["D7633.SDFX.3084871.Shadowfx","TN","PKT_Pattukkottai_TH"],["D7633.SDFX.3084872.Shadowfx","TN","SXV_Mohammed pura"],["21633.SDFX.3084851.Shadowfx","TN","TTP_Thiruthuraipoondi"],["21633.SDFX.3084860.Shadowfx","TN","TRZ_Thiruverumbur"],["D7633.SDFX.3084874.Shadowfx","TN","TRZ_Thiruverumbur"],["21633.SDFX.3084865.Shadowfx","TN","WJ_Walajabad"],["21633.SDFX.3089289.Shadowfx","TN","CHN_DS_Velacherry"],["D7633.SDFX.3089291.Shadowfx","TN","CHN_DS_Velacherry"],["D7633.SDFX.3084070.Shadowfx","TN","CHN_DS_Vadapalani"],["21633.SDFX.3084061.Shadowfx","TN","CHN_DS_Vadapalani"],["28633.SDFX.3084085.Shadowfx","TN","CBE_DS_Kalapatti"],["28633.SDFX.3084086.Shadowfx","TN","CBE_DS_Podanur"],["28627.SDFX.3084845.Shadowfx","ROM","PNQ_Shirur"],["28627.SDFX.3084844.Shadowfx","ROM","VAGD_Gondia_TH"],["28633.SDFX.3084890.Shadowfx","TN","TNM_Tiruvannamalai_TH"],["28633.SDFX.3084087.Shadowfx","TN","CHN_DS_Vadapalani"],["28633.SDFX.3084887.Shadowfx","TN","TNJ_Ayyampettai"],["D7621.SDFX.3093228.Shadowfx","ORS","CTC_DS_Cuttack"],["21709.SDFX.3101368.Shadowfx","UPE","BNDA_Banda"],["256.SDFX.3093210.Shadowfx","ORS","CTC_DS_Cuttack"],["28621.SDFX.3093222.Shadowfx","ORS","CTC_DS_Cuttack"],["24121.SDFX.3093216.Shadowfx","ORS","CTC_DS_Cuttack"],["209.SDFX.3095328.Shadowfx","WB","CCU_DS_Belgharia"],["28619.SDFX.3016001.Shadowfx","WB","CCU_DS_Belgharia"],["D7609.SDFX.3101376.Shadowfx","UPE","BNDA_Banda"],["D7656.SDFX.3095347.Shadowfx","WB","CCU_DS_Belgharia"],["28619.SDFX.3095341.Shadowfx","WB","CCU_DS_Belgharia"],["D7627.CFWA.3081061.Shadowfx","ROM","MGVK_Malegaon_TH"],["21403.SDFX.3115036.Shadowfx","UN-PUN","SGR_Sangrur"],["256.SDFX.3013210.Shadowfx","ORS","CTC_DS_Cuttack"],["D7621.SDFX.3013282.Shadowfx","ORS","CTC_DS_Cuttack"],["D7627.SDFX.3111309.Shadowfx","ROM","HTK_Ichalkaranji_TH"],["21027.SDFX.3111305.Shadowfx","ROM","HTK_Ichalkaranji_TH"],["28621.SDFX.3013278.Shadowfx","ORS","CTC_DS_Cuttack"],["D7603.SDFX.3115044.Shadowfx","UN-PUN","SGR_Sangrur"],["24127.SDFX.3042467.Shadowfx","ROM","ANG_DS_Savedi"]];
+const S={file:null,locators:DEFAULT_LOCATORS.slice(),locatorLabel:'built-in table',res:null,types:new Set(),circle:'',status:'all',q:'',rules:Object.assign({},Engine.DEFAULT_RULES),pv:null,worker:null,tab:'pivot'};
+const fmt=n=>Number(n).toLocaleString('en-IN');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---- worker (heavy parsing off the UI thread; falls back to main thread) ---- */
+const WORKER_GLUE=`
+self.onmessage=async function(e){var m=e.data;
+ try{var res=await Engine.processFile(m.buffer,m.name,m.locators,function(p){self.postMessage({type:'progress',p:p});});
+  self.postMessage({type:'done',res:res});}
+ catch(err){self.postMessage({type:'error',message:String(err&&err.message||err)});}
+};`;
+function workerSource(){return $('src-fflate').textContent+'\n'+$('src-engine').textContent+'\n'+WORKER_GLUE;}
+
+async function run(file){
+  S.file=file;hideErr();$('results').hidden=true;$('progCard').hidden=false;
+  const t0=Date.now();const tick=setInterval(()=>{$('progTime').textContent=((Date.now()-t0)/1000).toFixed(0)+' s';},500);
+  setProg({stage:'Reading file',pct:0});
+  try{
+    let buf=await file.arrayBuffer();
+    let res=null;
+    if(typeof Worker!=='undefined'){
+      try{res=await viaWorker(buf,file.name);}
+      catch(e){if(e&&e.fallback){buf=await file.arrayBuffer();res=null;}else throw e;}
+    }
+    if(!res)res=await Engine.processFile(buf,file.name,S.locators,setProg);
+    S.res=res;S.locatorLabel=S.locatorLabel;
+    initFilters();recompute();
+    $('progCard').hidden=true;$('results').hidden=false;
+  }catch(err){$('progCard').hidden=true;showErr(err&&err.message||String(err));}
+  finally{clearInterval(tick);}
+}
+function viaWorker(buf,name){
+  return new Promise((resolve,reject)=>{
+    let w;
+    try{w=new Worker(URL.createObjectURL(new Blob([workerSource()],{type:'text/javascript'})));}catch(e){reject({fallback:true});return;}
+    S.worker=w;let gotMsg=false;
+    w.onmessage=function(ev){gotMsg=true;const m=ev.data;
+      if(m.type==='progress')setProg(m.p);
+      else if(m.type==='done'){w.terminate();resolve(m.res);}
+      else if(m.type==='error'){w.terminate();reject(new Error(m.message));}};
+    w.onerror=function(ev){w.terminate();if(!gotMsg)reject({fallback:true});else reject(new Error(ev.message||'Worker error'));};
+    w.postMessage({cmd:'process',buffer:buf,name:name,locators:S.locators},[buf]);
+  });
+}
+function setProg(p){
+  if(p.stage)$('progStage').textContent=p.stage;
+  $('progBar').style.width=Math.round((p.pct||0)*100)+'%';
+  $('progDetail').textContent=p.rows?fmt(p.rows)+' rows scanned · '+fmt(p.used||0)+' SDFX rows used':'';
+}
+function showErr(m){const b=$('errBox');b.textContent=m;b.hidden=false;}
+function hideErr(){$('errBox').hidden=true;}
+
+/* ---- filters ---- */
+function initFilters(){
+  const types=Object.keys(S.res.meta.types).sort();
+  S.types=new Set(types.includes('Allocate')?['Allocate']:types);
+  $('typeChips').innerHTML=types.map(t=>'<label class="chip'+(S.types.has(t)?' on':'')+'"><input type="checkbox" value="'+esc(t)+'"'+(S.types.has(t)?' checked':'')+'>'+esc(t)+' <span class="muted">('+fmt(S.res.meta.types[t])+')</span></label>').join('');
+  const circles=Array.from(new Set(S.res.records.map(r=>r.circle))).sort();
+  $('circleSel').innerHTML='<option value="">All circles</option>'+circles.map(c=>'<option>'+esc(c)+'</option>').join('');
+  S.circle='';S.status='all';S.q='';$('statusSel').value='all';$('searchBox').value='';
+}
+$('typeChips').addEventListener('change',e=>{
+  const cb=e.target;if(!cb.value)return;
+  if(cb.checked)S.types.add(cb.value);else S.types.delete(cb.value);
+  cb.parentNode.classList.toggle('on',cb.checked);recompute();
+});
+$('circleSel').onchange=e=>{S.circle=e.target.value;recompute();};
+$('statusSel').onchange=e=>{S.status=e.target.value;refreshViews();};
+let st=null;$('searchBox').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{S.q=e.target.value.trim().toLowerCase();refreshViews();},180);};
+$('rulesBtn').onclick=()=>{$('rulesBox').hidden=!$('rulesBox').hidden;};
+const RMAP={r_cat:'catPerSet',r_cab:'cablePerOnt',r_tol:'cableTol',r_fp:'fpPerOnt',r_df:'dfPerOnt'};
+Object.keys(RMAP).forEach(id=>{$(id).value=S.rules[RMAP[id]];$(id).onchange=e=>{const v=Number(e.target.value);if(!isNaN(v)&&v>=0){S.rules[RMAP[id]]=v;recompute();}};});
+
+/* ---- compute + render ---- */
+function recompute(){
+  if(!S.res)return;
+  S.pv=Engine.buildPivot(S.res.records,{types:S.types,circles:S.circle?new Set([S.circle]):null,rules:S.rules});
+  renderKpis();renderWarn();refreshViews();
+}
+function renderKpis(){
+  const T=S.pv.tot,m=S.res.meta;
+  const k=[['Raw rows scanned',fmt(m.totalRows),''],['SDFX rows',fmt(m.sdfxRows),''],['Pivot rows',fmt(S.pv.rows.length),''],['Red rows',fmt(T.red),'r'],['Green rows',fmt(T.green),'g'],
+    ['Excess Cat 6 (m)',fmt(T.exCat),T.exCat?'r':''],['Excess outdoor cable (m)',fmt(T.exCable),T.exCable?'r':''],['Extra Face Plates',fmt(T.exFp),T.exFp?'r':''],['Extra Drop Fiber acc.',fmt(T.exDf),T.exDf?'r':''],['Processed in',(m.ms/1000).toFixed(1)+' s','']];
+  $('kpis').innerHTML=k.map(x=>'<div class="kpi '+x[2]+'"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');
+}
+function renderWarn(){
+  const m=S.res.meta,w=[];const un=Object.keys(m.unmapped);
+  if(un.length)w.push('<b>'+un.length+' SDFX locator(s) are not in the locator table</b> ('+fmt(un.reduce((a,k)=>a+m.unmapped[k],0))+' rows) and appear under circle “UNMAPPED”: '+esc(un.slice(0,8).join(', '))+(un.length>8?' …':'')+'. Use “Replace locator table…” with an updated list.');
+  if(m.badDate)w.push(fmt(m.badDate)+' row(s) had an unreadable Txn_Date and were skipped.');
+  if(!S.types.size)w.push('No Txn_Type selected — tick at least one.');
+  $('warnBox').innerHTML=w.map(x=>'<div class="warn">'+x+'</div>').join('');
+}
+
+/* ---- virtual table ---- */
+function VTable(host,cols,rh){
+  host.innerHTML='<div class="vt-scroll"><table><colgroup>'+cols.map(c=>'<col style="width:'+c.w+'px">').join('')+'</colgroup><thead><tr>'+cols.map(c=>'<th>'+esc(c.h)+'</th>').join('')+'</tr></thead><tbody></tbody></table></div>';
+  const sc=host.firstChild,tb=sc.querySelector('tbody');let rows=[],foot=null,pend=false;
+  function draw(){
+    pend=false;
+    const top=sc.scrollTop,h=sc.clientHeight||500;
+    const a=Math.max(0,Math.floor(top/rh)-8),b=Math.min(rows.length,Math.ceil((top+h)/rh)+8);
+    let html='<tr class="sp"><td colspan="'+cols.length+'" style="height:'+(a*rh)+'px"></td></tr>';
+    for(let i=a;i<b;i++){const r=rows[i];html+='<tr>'+cols.map(c=>{const v=c.v(r);const cl=(c.n?'n ':'')+(c.cls?c.cls(r):'');return '<td class="'+cl+'" title="'+(c.n?'':esc(v))+'">'+esc(v)+'</td>';}).join('')+'</tr>';}
+    html+='<tr class="sp"><td colspan="'+cols.length+'" style="height:'+((rows.length-b)*rh)+'px"></td></tr>';
+    if(foot)html+='<tr class="tot">'+cols.map((c,i)=>'<td class="'+(c.n?'n':'')+'">'+esc(foot[i]==null?'':foot[i])+'</td>').join('')+'</tr>';
+    tb.innerHTML=html;
+  }
+  sc.addEventListener('scroll',()=>{if(!pend){pend=true;requestAnimationFrame(draw);}});
+  return{set:function(r,f){rows=r;foot=f||null;sc.scrollTop=0;draw();},redraw:draw};
+}
+const fill=r=>r.red?'r':'g';
+const num=(x)=>x?fmt(x):'';
+const pivotCols=[
+  {h:'Txn_Date',w:78,v:r=>Engine.fmtDay(r.day)},{h:'Circle',w:70,v:r=>r.circle},{h:'SS',w:190,v:r=>r.store},{h:'Engineer_Name',w:190,v:r=>r.eng}]
+  .concat(Engine.ITEMS.map((n,i)=>({h:n,w:i===1?104:84,n:1,v:r=>num(r.q[i]),cls:fill})))
+  .concat([{h:'Excess Cat 6',w:84,n:1,v:r=>fmt(r.exCat),cls:fill},{h:'Excess out. Cable',w:98,n:1,v:r=>fmt(r.exCable),cls:fill},{h:'Grand Total',w:88,n:1,v:r=>fmt(r.total),cls:fill},{h:'Flag (why red)',w:260,v:r=>r.why,cls:()=>'why'}]);
+const vtPivot=VTable($('vtPivot'),pivotCols,30);
+const vtExtra=VTable($('vtExtra'),[
+  {h:'Txn_Date',w:78,v:e=>Engine.fmtDay(e.row.day)},{h:'Circle',w:70,v:e=>e.row.circle},{h:'SS',w:200,v:e=>e.row.store},{h:'Engineer_Name',w:200,v:e=>e.row.eng},
+  {h:'Item',w:170,v:e=>e.item},{h:'Issued',w:80,n:1,v:e=>fmt(e.issued)},{h:'Allowed',w:80,n:1,v:e=>fmt(e.allowed)},{h:'Extra',w:80,n:1,v:e=>fmt(e.extra),cls:()=>'r'}],30);
+const vtStores=VTable($('vtStores'),[
+  {h:'SS',w:220,v:s=>s.store},{h:'Circle',w:80,v:s=>s.circle},{h:'Pivot rows',w:84,n:1,v:s=>fmt(s.rows)},{h:'Red rows',w:80,n:1,v:s=>fmt(s.red)},
+  {h:'Excess Cat 6',w:100,n:1,v:s=>fmt(s.exCat)},{h:'Excess out. Cable',w:120,n:1,v:s=>fmt(s.exCable)},{h:'Excess Face Plate',w:120,n:1,v:s=>fmt(s.exFp)},{h:'Excess Drop Fiber',w:120,n:1,v:s=>fmt(s.exDf)}],30);
+
+function match(row){
+  if(S.q){const t=(row.store+' '+row.eng+' '+row.circle).toLowerCase();if(t.indexOf(S.q)<0)return false;}
+  return true;
+}
+function refreshViews(){
+  if(!S.pv)return;
+  const pv=S.pv;
+  let rows=pv.rows;
+  if(S.status==='red')rows=rows.filter(r=>r.red);else if(S.status==='green')rows=rows.filter(r=>!r.red);
+  if(S.q)rows=rows.filter(match);
+  const T=pv.tot,foot=['Grand Total (all pivot rows)','','',''].concat(T.q.map(fmt),[fmt(T.exCat),fmt(T.exCable),fmt(T.grand),'']);
+  vtPivot.set(rows,foot);
+  vtExtra.set(pv.extras.filter(e=>!S.q||match(e.row)));
+  vtStores.set(S.q?pv.stores.filter(s=>(s.store+' '+s.circle).toLowerCase().indexOf(S.q)>=0):pv.stores);
+}
+$('tabs').addEventListener('click',e=>{
+  const t=e.target.dataset&&e.target.dataset.t;if(!t)return;S.tab=t;
+  Array.from($('tabs').children).forEach(x=>x.classList.toggle('on',x===e.target));
+  ['pivot','extra','stores','notes'].forEach(n=>{$('tab_'+n).hidden=n!==t;});
+  ({pivot:vtPivot,extra:vtExtra,stores:vtStores})[t]&&({pivot:vtPivot,extra:vtExtra,stores:vtStores})[t].redraw();
+});
+
+/* ---- download ---- */
+$('dlBtn').onclick=function(){
+  if(!S.pv)return;
+  const info={typesLabel:Array.from(S.types).join(', ')||'(none)',circlesLabel:S.circle||'(All)'};
+  const bytes=Engine.buildXlsx(S.pv,info);
+  const base=(S.file&&S.file.name||'issuance').replace(/\.(zip|xlsx)$/i,'');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.download=base+'_tracker.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+};
+$('newBtn').onclick=function(){S.res=null;S.pv=null;$('results').hidden=true;$('file').value='';hideErr();};
+
+/* ---- upload wiring ---- */
+const drop=$('drop');
+drop.onclick=()=>$('file').click();
+$('file').onchange=e=>{if(e.target.files[0])run(e.target.files[0]);};
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)run(f);});
+function locInfo(){$('locInfo').textContent='Locator table: '+fmt(S.locators.length)+' rows ('+S.locatorLabel+')';}
+$('locBtn').onclick=()=>$('locFile').click();
+$('locFile').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{const rows=Engine.parseLocatorFile(await f.arrayBuffer(),f.name);S.locators=rows;S.locatorLabel=f.name;locInfo();hideErr();
+    if(S.file)run(S.file);}
+  catch(err){showErr(err.message||String(err));}
+  e.target.value='';
+};
+locInfo();
+window.__tracker={S:S,run:run};
+})();
+</script>
+</body>
+</html>
