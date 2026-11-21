@@ -68,5 +68,16 @@ window.OPS_MODULES = [
     url: 'issuance-tracker.html',
     accent: 'green',
     icon: 'issuance'
+  },
+  {
+    id: 'missing-stock',
+    route: '/missing-stock',
+    navLabel: 'Missing Stock',
+    title: 'Missing Stock',
+    description: 'Drop the PAN India substore stock report (zip or xlsx) to keep only the SDFX locator rows with the status you need, then download the filtered Excel.',
+    quickAccessLabel: 'Open Missing Stock',
+    url: 'missing-stock.html',
+    accent: 'orange',
+    icon: 'stock'
   }
 ];
