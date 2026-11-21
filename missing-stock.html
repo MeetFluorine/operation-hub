@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Substore Stock Filter – SDFX Missing Report</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:#f4f6fa;color:#1b2433;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:24px;margin:0 0 4px}.sub{color:#5d6b82;margin:0 0 22px}
+.card{background:#fff;border:1px solid #dbe1ec;border-radius:14px;padding:20px;margin-bottom:18px}
+.drop{display:block;border:2px dashed #b7c3da;border-radius:12px;padding:30px 16px;text-align:center;cursor:pointer;color:#5d6b82}
+.drop.on,.drop:hover{border-color:#2f5bea;background:#eef2ff;color:#2f5bea}
+.drop b{display:block;font-size:16px;color:#1b2433}.drop.on b,.drop:hover b{color:#2f5bea}
+input[type=file]{display:none}
+.row{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;align-items:flex-end}
+.f{flex:1;min-width:170px}.f label{display:block;font-size:12px;font-weight:600;color:#5d6b82;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+input[type=text],select{width:100%;padding:9px 11px;border:1px solid #dbe1ec;border-radius:8px;font:inherit;background:#fff;color:#1b2433}
+button{font:inherit;font-weight:600;border:0;border-radius:9px;padding:10px 20px;cursor:pointer;background:#2f5bea;color:#fff}
+button:disabled{background:#a9b4cc;cursor:not-allowed}
+button.alt{background:#12a37a}
+.bar{height:10px;background:#e4e9f3;border-radius:6px;overflow:hidden;margin-top:14px;display:none}
+.bar i{display:block;height:100%;width:0;background:#2f5bea;transition:width .15s}
+#msg{margin-top:10px;color:#5d6b82;min-height:20px}#msg.err{color:#d6334a}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.k{border:1px solid #dbe1ec;border-radius:12px;padding:14px;background:#f8faff}
+.k span{display:block;font-size:12px;color:#5d6b82;text-transform:uppercase;letter-spacing:.04em}.k b{font-size:26px}
+.sc{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid #e4e9f3;text-align:left;white-space:nowrap}
+th{background:#f1f4fb;position:sticky;top:0}
+td.n,th.n{text-align:right}
+h2{font-size:16px;margin:0 0 10px}
+.note{font-size:12.5px;color:#5d6b82;margin-top:10px}
+@media (prefers-color-scheme:dark){
+body{background:#0f141d;color:#e6ebf5}.sub,#msg,.f label,.k span,.note,.drop{color:#93a0b8}
+.card{background:#171e2b;border-color:#283247}.drop{border-color:#3a4863}
+.drop b{color:#e6ebf5}.drop.on,.drop:hover{background:#1c2540;border-color:#6c8cff;color:#6c8cff}.drop.on b,.drop:hover b{color:#6c8cff}
+input[type=text],select{background:#0f141d;border-color:#283247;color:#e6ebf5}
+button{background:#4a6bef}button:disabled{background:#3a4863;color:#7d8aa3}button.alt{background:#139c76}
+.bar{background:#283247}.bar i{background:#6c8cff}#msg.err{color:#ff7a8c}
+.k{background:#1b2333;border-color:#283247}th{background:#1f283a}th,td{border-color:#283247}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Substore Stock Filter</h1>
+<p class="sub">Upload the PAN India substore stock report. Get back only the SDFX locator rows with the status you need, as an Excel file.</p>
+
+<div class="card">
+<label class="drop" id="drop" for="file"><b id="fname">Drop the .zip (or .xlsx) here, or click to browse</b><span id="fsize">Processed entirely in your browser; nothing is uploaded anywhere.</span></label>
+<input type="file" id="file" accept=".zip,.xlsx">
+<div class="row">
+<div class="f"><label for="kw">Step 1 · Column B contains</label><input type="text" id="kw" value="SDFX"></div>
+<div class="f"><label for="sv">Step 2 · Inventory_Status (column H)</label><input type="text" id="sv" value="Missing"></div>
+<div class="f"><label for="mode">Status rule</label><select id="mode"><option value="keep">Keep only this status</option><option value="remove">Remove this status</option></select></div>
+<button id="go" disabled>Apply filters</button>
+</div>
+<div class="bar" id="bar"><i id="fill"></i></div>
+<div id="msg"></div>
+</div>
+
+<div id="res" style="display:none">
+<div class="card">
+<div class="kpis" id="kpis"></div>
+<div class="sc"><table id="sum"></table></div>
+<div class="row"><button class="alt" id="dl">Download filtered Excel</button></div>
+<div class="note">Each source sheet that has data becomes its own sheet in the download, plus a Summary sheet.</div>
+</div>
+<div class="card"><h2>Preview (first 50 rows)</h2><div class="sc" style="max-height:420px"><table id="prev"></table></div></div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let file=null,result=null,last=0;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const unesc=s=>s.replace(/&(#x?[0-9a-fA-F]+|lt|gt|quot|apos|amp);/g,(m,g)=>g[0]==='#'?String.fromCodePoint(g[1]==='x'?parseInt(g.slice(2),16):+g.slice(1)):({lt:'<',gt:'>',quot:'"',apos:"'",amp:'&'}[g]));
+const fmt=n=>n.toLocaleString('en-IN');
+const msg=(t,err)=>{$('msg').textContent=t;$('msg').className=err?'err':''};
+
+/* ---------- zip + streaming helpers ---------- */
+function zipDir(u){
+  const dv=new DataView(u.buffer,u.byteOffset,u.byteLength);
+  let p=u.length-22;const lim=Math.max(0,u.length-65557);
+  while(p>=lim&&dv.getUint32(p,true)!==0x06054b50)p--;
+  if(p<lim)throw new Error('This does not look like a valid .zip or .xlsx file.');
+  const n=dv.getUint16(p+10,true);let q=dv.getUint32(p+16,true);const m={};
+  for(let i=0;i<n&&dv.getUint32(q,true)===0x02014b50;i++){
+    const nl=dv.getUint16(q+28,true),el=dv.getUint16(q+30,true),cl=dv.getUint16(q+32,true);
+    m[new TextDecoder().decode(u.subarray(q+46,q+46+nl))]={meth:dv.getUint16(q+10,true),cs:dv.getUint32(q+20,true),us:dv.getUint32(q+24,true),off:dv.getUint32(q+42,true)};
+    q+=46+nl+el+cl;
+  }
+  return m;
+}
+async function stream(u,e,onChunk){
+  const dv=new DataView(u.buffer,u.byteOffset,u.byteLength);
+  const s=e.off+30+dv.getUint16(e.off+26,true)+dv.getUint16(e.off+28,true);
+  const d=u.subarray(s,s+e.cs),S=1<<20;
+  if(e.meth===0){for(let i=0;i<d.length;i+=S)onChunk(d.subarray(i,i+S));return}
+  if(e.meth!==8)throw new Error('Unsupported zip compression method.');
+  let p=0;
+  const rs=new ReadableStream({pull(c){if(p>=d.length)c.close();else{c.enqueue(d.subarray(p,p+S));p+=S}}});
+  const r=rs.pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+  for(;;){const x=await r.read();if(x.done)break;onChunk(x.value)}
+}
+async function text(u,e,fn){
+  const dec=new TextDecoder();
+  await stream(u,e,c=>fn(dec.decode(c,{stream:true})));
+  const t=dec.decode();if(t)fn(t);
+}
+async function readAll(u,e){let s='';await text(u,e,t=>s+=t);return s}
+
+/* shared strings: onN(count) once, then onS(index,string) for every entry */
+async function sst(u,e,onN,onS,tick){
+  let buf='',i=0,first=true;const tre=/<t\b[^>]*?(?:\/>|>([^<]*)<\/t>)/g;
+  await text(u,e,t=>{
+    if(first){first=false;const m=/\buniqueCount="(\d+)"/.exec(t)||/\bcount="(\d+)"/.exec(t);onN(m?+m[1]:1<<24)}
+    buf+=t;let pos=0,x;
+    while((x=buf.indexOf('</si>',pos))>=0){
+      const seg=buf.slice(pos,x),k=seg.lastIndexOf('<si>');pos=x+5;
+      let s='';
+      if(k>=0){for(const m of seg.slice(k+4).matchAll(tre))s+=m[1]||'';if(s.indexOf('&')>=0)s=unesc(s)}
+      onS(i++,s);
+    }
+    buf=buf.slice(pos);tick(t.length);
+  });
+}
+
+/* ---------- cell helpers ---------- */
+const colIdx=s=>{let n=0;for(const ch of s)n=n*26+ch.charCodeAt(0)-64;return n-1};
+function cellInfo(row,ref){
+  const k=row.indexOf('<c r="'+ref+'"');if(k<0)return null;
+  const j=row.indexOf('>',k);
+  if(row.charCodeAt(j-1)===47||!row.startsWith('<v>',j+1))return null;
+  const v=row.slice(j+4,row.indexOf('</v>',j+4));
+  return row.slice(k,j).includes(' t="s"')?{s:1,v:+v}:{s:0,v:unesc(v)};
+}
+function fullRow(row){
+  const a=[];
+  for(const m of row.matchAll(/<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>(?:<v>([^<]*)<\/v>)?<\/c>)/g)){
+    if(m[3]===undefined)continue;const c=colIdx(m[1]);
+    if(m[2].includes(' t="s"'))a[c]={i:+m[3]};
+    else if(/ t="(str|inlineStr|e)"/.test(m[2]))a[c]=unesc(m[3]);
+    else a[c]=+m[3];
+  }
+  return a;
+}
+
+/* ---------- main pipeline ---------- */
+async function run(f,kw,sv,keep,P){
+  if(typeof DecompressionStream==='undefined')throw new Error('This browser is too old. Please use a current Chrome, Edge, Firefox or Safari.');
+  P(0,'Reading file…');
+  let u=new Uint8Array(await f.arrayBuffer()),z=zipDir(u);
+  const inner=Object.keys(z).find(n=>/\.xlsx$/i.test(n));
+  if(inner){
+    P(0,'Unpacking the xlsx from the zip…');
+    const e=z[inner],out=new Uint8Array(e.us);let o=0;
+    await stream(u,e,c=>{out.set(c,o);o+=c.length});
+    u=out;z=zipDir(u);
+  }
+  if(!z['xl/workbook.xml'])throw new Error('No Excel workbook found in this file.');
+  const wbx=await readAll(u,z['xl/workbook.xml']),rx=z['xl/_rels/workbook.xml.rels']?await readAll(u,z['xl/_rels/workbook.xml.rels']):'';
+  const rel={};
+  for(const m of rx.matchAll(/<Relationship\b[^>]*>/g)){const i=/\bId="([^"]+)"/.exec(m[0]),t=/\bTarget="([^"]+)"/.exec(m[0]);if(i&&t)rel[i[1]]=t[1].replace(/^\/?(xl\/)?/,'')}
+  const sheets=[...wbx.matchAll(/<sheet\b[^>]*>/g)].map(m=>{
+    const n=/\bname="([^"]*)"/.exec(m[0]),r=/\br:id="([^"]*)"/.exec(m[0]);
+    return{name:unesc(n[1]),e:z['xl/'+rel[r[1]]]};
+  }).filter(s=>s.e);
+  const sz=z['xl/sharedStrings.xml'];if(!sz)throw new Error('Shared strings missing from workbook.');
+  const tot=sz.us*2+sheets.reduce((a,s)=>a+s.e.us,0);let done=0;
+  const tick=(n,m)=>{done+=n;const t=performance.now();if(t-last>120){last=t;P(Math.min(done/tot,1),m)}};
+
+  // pass A: which shared strings match each filter
+  let loc,st;
+  await sst(u,sz,n=>{loc=new Uint8Array(n);st=new Uint8Array(n)},(i,s)=>{
+    const l=s.toLowerCase();if(l.includes(kw))loc[i]=1;if(l.trim()===sv)st[i]=1;
+  },n=>tick(n,'Indexing text values…'));
+
+  // pass B: stream every sheet row by row
+  const res=[];
+  for(const sh of sheets){
+    const r={name:sh.name,scanned:0,aLoc:0,header:null,rows:[]};let buf='';
+    const test=(c,fl,pred)=>c?(c.s?fl[c.v]===1:pred(c.v)):false;
+    await text(u,sh.e,t=>{
+      buf+=t;let p=0,e;
+      while((e=buf.indexOf('</row>',p))>=0){
+        const s=buf.lastIndexOf('<row ',e);
+        if(s>=p){
+          const row=buf.slice(s,e),rn=row.slice(8,row.indexOf('"',8));
+          if(rn==='1')r.header=fullRow(row);
+          else{
+            r.scanned++;
+            if(test(cellInfo(row,'B'+rn),loc,v=>v.toLowerCase().includes(kw))){
+              r.aLoc++;
+              const hit=test(cellInfo(row,'H'+rn),st,v=>v.trim().toLowerCase()===sv);
+              if(hit===keep)r.rows.push(fullRow(row));
+            }
+          }
+        }
+        p=e+6;
+      }
+      buf=buf.slice(p);tick(t.length,'Scanning '+sh.name+'…  '+fmt(r.scanned)+' rows');
+    });
+    res.push(r);
+  }
+
+  // pass C: fetch only the strings the kept rows need
+  const need=new Uint8Array(loc.length),map=new Map();
+  for(const r of res){
+    const mark=a=>a.forEach(c=>{if(c&&typeof c==='object')need[c.i]=1});
+    if(r.header)mark(r.header);r.rows.forEach(mark);
+  }
+  await sst(u,sz,()=>{},(i,s)=>{if(need[i])map.set(i,s)},n=>tick(n,'Collecting results…'));
+  const fix=a=>{const o=new Array(a.length).fill(null);a.forEach((c,i)=>{o[i]=c&&typeof c==='object'?(map.get(c.i)||null):c});return o};
+  for(const r of res){if(r.header)r.header=fix(r.header);r.rows=r.rows.map(fix)}
+  P(1,'Done');
+  return res.filter(r=>r.scanned>0);
+}
+
+/* ---------- UI ---------- */
+function setFile(f){
+  if(!f)return;file=f;
+  $('fname').textContent=f.name;$('fsize').textContent=(f.size/1048576).toFixed(1)+' MB selected';
+  $('go').disabled=false;
+}
+$('file').onchange=e=>setFile(e.target.files[0]);
+const dz=$('drop');
+['dragenter','dragover'].forEach(v=>dz.addEventListener(v,e=>{e.preventDefault();dz.classList.add('on')}));
+['dragleave','drop'].forEach(v=>dz.addEventListener(v,e=>{e.preventDefault();dz.classList.remove('on')}));
+dz.addEventListener('drop',e=>setFile(e.dataTransfer.files[0]));
+
+$('go').onclick=async()=>{
+  const kw=$('kw').value.trim().toLowerCase(),sv=$('sv').value.trim().toLowerCase();
+  if(!kw||!sv){msg('Please fill in both filter values.',1);return}
+  $('go').disabled=true;$('res').style.display='none';result=null;
+  $('bar').style.display='block';
+  const t0=performance.now();
+  try{
+    result=await run(file,kw,sv,$('mode').value==='keep',(f,m)=>{$('fill').style.width=(f*100).toFixed(1)+'%';msg(m+'  ('+Math.round(f*100)+'%)')});
+    msg('Finished in '+((performance.now()-t0)/1000).toFixed(0)+' s.');
+    render();
+  }catch(err){console.error(err);msg(err.message||String(err),1)}
+  $('go').disabled=false;
+};
+
+function render(){
+  const sc=result.reduce((a,r)=>a+r.scanned,0),al=result.reduce((a,r)=>a+r.aLoc,0),fin=result.reduce((a,r)=>a+r.rows.length,0);
+  const kp=(l,v)=>'<div class="k"><span>'+l+'</span><b>'+fmt(v)+'</b></div>';
+  $('kpis').innerHTML=kp('Rows scanned',sc)+kp('After locator filter',al)+kp('Final rows',fin);
+  $('sum').innerHTML='<tr><th>Source sheet</th><th class="n">Rows scanned</th><th class="n">Locator matches</th><th class="n">Final rows</th></tr>'+
+    result.map(r=>'<tr><td>'+esc(r.name)+'</td><td class="n">'+fmt(r.scanned)+'</td><td class="n">'+fmt(r.aLoc)+'</td><td class="n">'+fmt(r.rows.length)+'</td></tr>').join('');
+  const h=(result.find(r=>r.header)||{}).header||[];
+  const pv=[].concat(...result.map(r=>r.rows)).slice(0,50);
+  $('prev').innerHTML='<tr>'+h.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr>'+
+    pv.map(r=>'<tr>'+h.map((_,i)=>'<td>'+esc(r[i])+'</td>').join('')+'</tr>').join('');
+  $('dl').disabled=fin===0;
+  $('res').style.display='block';
+}
+
+function build(){
+  const wb=XLSX.utils.book_new(),kw=$('kw').value.trim(),sv=$('sv').value.trim(),keep=$('mode').value==='keep';
+  const sm=[['Filter summary'],['Step 1','Substore_Locator (column B) contains "'+kw+'"'],['Step 2','Inventory_Status (column H) '+(keep?'is':'is not')+' "'+sv+'"'],['Generated',new Date().toLocaleString()],[],['Source sheet','Rows scanned','Locator matches','Final rows']];
+  result.forEach(r=>{
+    sm.push([r.name,r.scanned,r.aLoc,r.rows.length]);
+    const ws=XLSX.utils.aoa_to_sheet([r.header].concat(r.rows));
+    r.header.forEach((h,c)=>{
+      if(/date/i.test(h))for(let i=1;i<=r.rows.length;i++){const cell=ws[XLSX.utils.encode_cell({r:i,c})];if(cell&&cell.t==='n')cell.z='dd-mmm-yyyy hh:mm'}
+    });
+    ws['!cols']=r.header.map(h=>({wch:Math.max(12,Math.min(40,String(h).length+4))}));
+    if(ws['!ref'])ws['!autofilter']={ref:ws['!ref']};
+    XLSX.utils.book_append_sheet(wb,ws,r.name.slice(0,31));
+  });
+  const s=XLSX.utils.aoa_to_sheet(sm);s['!cols']=[{wch:22},{wch:44},{wch:18},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,s,'Summary');
+  return wb;
+}
+$('dl').onclick=async()=>{
+  try{
+    const buf=XLSX.write(build(),{bookType:'xlsx',type:'array'});
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const name='Filtered_'+$('kw').value.trim()+'_'+$('sv').value.trim()+'_Stock_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    let d=null;try{d=window.claude&&await claude.use('downloads')}catch(e){}
+    if(d){
+      try{await d.save({filename:name.replace(/\s+/g,'_'),data:blob});msg('Saved.')}
+      catch(e){if(e&&e.code!=='declined')msg('Download failed: '+(e.message||e.code),1)}
+    }else{
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+    }
+  }catch(err){console.error(err);msg('Could not build the Excel file: '+err.message,1)}
+};
+</script>
+</body>
+</html>
