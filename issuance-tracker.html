@@ -63,7 +63,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 <body>
 <header>
   <h1>Issuance Allocation Tracker</h1>
-  <p>Drop the raw <i>Report_Issuance_Recover_PAN_India</i> zip — extract, SDFX filter, store/circle mapping, item renaming, pivot, allocation check and excess columns are done in your browser. Nothing is uploaded anywhere.</p>
+  <p>Drop the raw <i>Report_Issuance_Recover_PAN_India</i> zip — extract, SDFX filter, store/circle mapping, item renaming, pivot, allocation check and excess columns are done in your browser, plus a <b>Fresh recoveries</b> sheet (SDFX + Recover + New / New old / Refurbished / Refurbished old) in the download. Nothing is uploaded anywhere.</p>
 </header>
 <main>
   <section class="card" id="uploadCard">
@@ -137,6 +137,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
         <li>Pivot: rows = Txn_Date, Circle, SS, Engineer_Name; columns = Cat 6, Drop Fiber accessories, Wifi router, W-Modem outdoor, Ont, Face Plate, Outdoor cable; values = Issued_Qty.</li>
         <li>Highlight (columns Cat 6 → Grand Total): <b>red</b> if Cat 6 &gt; 20 m per Modem+WiFi set, or Face Plate / Drop Fiber &gt; 1 per ONT, or Outdoor cable more than 90 m per ONT plus the 100 m tolerance; otherwise <b>green</b>.</li>
         <li>Excess Cat 6 and Excess out. Cable columns hold the quantity above the standard (Excel formulas in the download).</li>
+        <li><b>Fresh recoveries</b> sheet in the download: only rows whose <i>Substore_Locator</i> contains <b>SDFX</b>, <i>Txn_Type</i> is <b>Recover</b> and <i>Ordered_Quality</i> is <b>New / New old / Refurbished / Refurbished old</b> — columns Substore_Locator, Substore_Circle, Substore_Inventory_Org, Substore_SI, Item_Code, Ordered_Quality, Serial_Number, Txn_Type, in file order.</li>
       </ol>
       <b>Assumptions to confirm</b>
       <ul>
@@ -324,6 +325,13 @@ function classify(desc,code,hasSerial){
 /* ---------- main processing ---------- */
 const isSdfx=s=>s.toUpperCase().indexOf('SDFX')>=0;
 const REQ=[['engineer_name','Engineer_Name'],['substore_locator','Substore_Locator'],['item_code','Item_Code'],['item_description','Item_Description'],['issued_qty','Issued_Qty'],['serial_number','Serial_Number'],['txn_type','Txn_Type'],['txn_date','Txn_Date']];
+/* Recovery Fresh: SDFX locator + Txn_Type Recover + Ordered_Quality New / New old /
+   Refurbished / Refurbished old, kept as 8 columns in file order. Quality is matched
+   after lower-casing and stripping non-alphanumerics, so 'New old', 'New Old',
+   'New_Old' all count. */
+const REC_COLS=[['substore_locator','Substore_Locator'],['substore_circle','Substore_Circle'],['substore_inventory_org','Substore_Inventory_Org'],['substore_si','Substore_SI'],['item_code','Item_Code'],['ordered_quality','Ordered_Quality'],['serial_number','Serial_Number'],['txn_type','Txn_Type']];
+const REC_QUAL={'new':1,'newold':1,'refurbished':1,'refurbishedold':1};
+const normQ=s=>String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]/g,'');
 async function processFile(buffer,fileName,locRows,progress){
   const t0=Date.now();const prog=progress||function(){};
   prog({stage:'Reading zip',pct:0});
@@ -340,11 +348,12 @@ async function processFile(buffer,fileName,locRows,progress){
   if(sstE){prog({stage:'Loading shared strings',pct:0});sst=buildSst(entryBytes(xlsx,sstE));}
   const sheets=xents.filter(e=>/^xl\/worksheets\/sheet\d+\.xml$/.test(e.name)).sort((a,b)=>parseInt(a.name.replace(/\D/g,''))-parseInt(b.name.replace(/\D/g,'')));
   const agg=new Map(),catCache=new Map(),unmapped={},types={};
+  const recovery=[];let recSkip=null;
   const st={totalRows:0,sdfxRows:0,usedRows:0,otherRows:0,badDate:0,sheetsScanned:0};
   let fatal=null;
   for(const sh of sheets){
     if(sh.usize<3000)continue;
-    let ix=null;
+    let ix=null,rx=null;
     const sc=createScanner(sst.get,{
       onHeader:function(names){
         const m={};names.forEach((n,i)=>{const k=normHdr(n);if(m[k]===undefined)m[k]=i;});
@@ -352,12 +361,22 @@ async function processFile(buffer,fileName,locRows,progress){
         const miss=REQ.filter(r=>m[r[0]]===undefined).map(r=>r[1]);
         if(miss.length){fatal=new Error('Missing column(s): '+miss.join(', '));return null;}
         ix={};REQ.forEach(r=>ix[r[0]]=m[r[0]]);
-        return{cols:REQ.map(r=>m[r[0]]),gateCol:m['substore_locator'],gateFn:isSdfx};
+        /* Recovery Fresh columns: if any are missing the pivot still works and
+           the recovery sheet is simply skipped (noted in meta.recoverySkipped). */
+        const rmiss=REC_COLS.filter(r=>m[r[0]]===undefined).map(r=>r[1]);
+        if(rmiss.length){rx=null;recSkip='Recovery Fresh sheet skipped — missing column(s): '+rmiss.join(', ');}
+        else{rx={};REC_COLS.forEach(r=>rx[r[0]]=m[r[0]]);}
+        return{cols:REQ.map(r=>m[r[0]]).concat(REC_COLS.map(r=>m[r[0]]).filter(c=>c!==undefined)),gateCol:m['substore_locator'],gateFn:isSdfx};
       },
       onRow:function(get){
         const loc=get(ix.substore_locator).trim();
         if(!isSdfx(loc))return;
         st.sdfxRows++;
+        /* Recovery Fresh: same SDFX gate (the scanner gate already drops
+           non-SDFX rows), plus Txn_Type Recover and the 4 kept qualities.
+           Collected before classification, so rows that never reach the pivot
+           (unclassifiable item, bad date) are still in the recovery sheet. */
+        if(rx){const tq=get(rx.txn_type).trim();if(tq.toLowerCase()==='recover'&&REC_QUAL[normQ(get(rx.ordered_quality))])recovery.push([loc,get(rx.substore_circle).trim(),get(rx.substore_inventory_org).trim(),get(rx.substore_si).trim(),get(rx.item_code).trim(),get(rx.ordered_quality).trim(),get(rx.serial_number).trim(),tq]);}
         const ser=get(ix.serial_number).trim(),has=ser!=='';
         const code=get(ix.item_code),desc=get(ix.item_description);
         const ck=(has?'S|':'N|')+code+'|'+desc;let cat=catCache.get(ck);
@@ -385,7 +404,7 @@ async function processFile(buffer,fileName,locRows,progress){
   }
   if(!st.sheetsScanned)throw new Error('No sheet with a "Substore_Locator" column was found. Is this the Issuance Recover PAN India raw file?');
   prog({stage:'Aggregating',pct:1,rows:st.totalRows,used:st.usedRows});
-  return{meta:Object.assign({},st,{unmapped:unmapped,types:types,fileName:fileName,ms:Date.now()-t0,locatorCount:locMap.size}),records:Array.from(agg.values())};
+  return{meta:Object.assign({},st,{unmapped:unmapped,types:types,fileName:fileName,ms:Date.now()-t0,locatorCount:locMap.size,recoveryRows:recovery.length,recoverySkipped:recSkip}),records:Array.from(agg.values()),recovery:recovery};
 }
 
 /* ---------- locator table file (xlsx / csv) ---------- */
@@ -518,12 +537,19 @@ function buildXlsx(pv,info){
   sh3[2]=['SS','Circle','Pivot rows','Red rows','Excess Cat 6','Excess out. Cable','Excess Face Plate','Excess Drop Fiber'].map(h=>({v:h,s:S.HDR}));
   pv.stores.forEach((s,i)=>{sh3[3+i]=[{v:s.store},{v:s.circle},{v:s.rows,s:S.CTR},{v:s.red,s:S.CTR},{v:s.exCat,s:S.CTR},{v:s.exCable,s:S.CTR},{v:s.exFp,s:S.CTR},{v:s.exDf,s:S.CTR}];});
   const x3=sheetXml({rows:sh3,cols:[26,10,11,10,14,17,17,17],freeze:{x:0,y:3},filter:pv.stores.length?'A3:H'+(2+pv.stores.length):null});
-  const wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Pivot" sheetId="1" r:id="rId1"/><sheet name="Extra issuance" sheetId="2" r:id="rId2"/><sheet name="Store summary" sheetId="3" r:id="rId3"/></sheets><definedNames>'+(rows.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Pivot!$A$4:$N$'+last+'</definedName>':'')+(pv.extras.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">\'Extra issuance\'!$A$3:$H$'+(2+pv.extras.length)+'</definedName>':'')+(pv.stores.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="2" hidden="1">\'Store summary\'!$A$3:$H$'+(2+pv.stores.length)+'</definedName>':'')+'</definedNames><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>';
-  const wbRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
-  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
+  /* fresh recoveries sheet: SDFX + Recover + New / New old / Refurbished /
+     Refurbished old, 8 columns, file order (info.recovery, collected in processFile). */
+  const rec=info.recovery||[];
+  const sh4=[[{v:'Fresh recoveries – SDFX locators, Txn_Type Recover, Ordered_Quality New / New old / Refurbished / Refurbished old',s:S.H1}],[]];
+  sh4[2]=['Substore_Locator','Substore_Circle','Substore_Inventory_Org','Substore_SI','Item_Code','Ordered_Quality','Serial_Number','Txn_Type'].map(h=>({v:h,s:S.HDR}));
+  rec.forEach((r,i)=>{sh4[3+i]=r.map(v=>({v:v}));});
+  const x4=sheetXml({rows:sh4,cols:[30,24,30,12,12,16,20,10],freeze:{x:0,y:3},filter:rec.length?'A3:H'+(2+rec.length):null});
+  const wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Pivot" sheetId="1" r:id="rId1"/><sheet name="Extra issuance" sheetId="2" r:id="rId2"/><sheet name="Store summary" sheetId="3" r:id="rId3"/><sheet name="Fresh recoveries" sheetId="4" r:id="rId5"/></sheets><definedNames>'+(rows.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Pivot!$A$4:$N$'+last+'</definedName>':'')+(pv.extras.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">\'Extra issuance\'!$A$3:$H$'+(2+pv.extras.length)+'</definedName>':'')+(pv.stores.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="2" hidden="1">\'Store summary\'!$A$3:$H$'+(2+pv.stores.length)+'</definedName>':'')+(rec.length?'<definedName name="_xlnm._FilterDatabase" localSheetId="3" hidden="1">\'Fresh recoveries\'!$A$3:$H$'+(2+rec.length)+'</definedName>':'')+'</definedNames><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>';
+  const wbRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet4.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
   const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
   const e=fflate.strToU8;
-  return fflate.zipSync({'[Content_Types].xml':e(ct),'_rels/.rels':e(rels),'xl/workbook.xml':e(wb),'xl/_rels/workbook.xml.rels':e(wbRels),'xl/styles.xml':e(STYLES),'xl/worksheets/sheet1.xml':e(x1),'xl/worksheets/sheet2.xml':e(x2),'xl/worksheets/sheet3.xml':e(x3)},{level:4});
+  return fflate.zipSync({'[Content_Types].xml':e(ct),'_rels/.rels':e(rels),'xl/workbook.xml':e(wb),'xl/_rels/workbook.xml.rels':e(wbRels),'xl/styles.xml':e(STYLES),'xl/worksheets/sheet1.xml':e(x1),'xl/worksheets/sheet2.xml':e(x2),'xl/worksheets/sheet3.xml':e(x3),'xl/worksheets/sheet4.xml':e(x4)},{level:4});
 }
 return{ITEMS,DEFAULT_RULES,classify,processFile,parseLocatorFile,buildPivot,buildXlsx,fmtDay,zipEntries,entryBytes,HAS_NATIVE};
 })();
@@ -614,13 +640,14 @@ function recompute(){
 }
 function renderKpis(){
   const T=S.pv.tot,m=S.res.meta;
-  const k=[['Raw rows scanned',fmt(m.totalRows),''],['SDFX rows',fmt(m.sdfxRows),''],['Pivot rows',fmt(S.pv.rows.length),''],['Red rows',fmt(T.red),'r'],['Green rows',fmt(T.green),'g'],
+  const k=[['Raw rows scanned',fmt(m.totalRows),''],['SDFX rows',fmt(m.sdfxRows),''],['Recovery Fresh rows',fmt(m.recoveryRows||0),''],['Pivot rows',fmt(S.pv.rows.length),''],['Red rows',fmt(T.red),'r'],['Green rows',fmt(T.green),'g'],
     ['Excess Cat 6 (m)',fmt(T.exCat),T.exCat?'r':''],['Excess outdoor cable (m)',fmt(T.exCable),T.exCable?'r':''],['Extra Face Plates',fmt(T.exFp),T.exFp?'r':''],['Extra Drop Fiber acc.',fmt(T.exDf),T.exDf?'r':''],['Processed in',(m.ms/1000).toFixed(1)+' s','']];
   $('kpis').innerHTML=k.map(x=>'<div class="kpi '+x[2]+'"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');
 }
 function renderWarn(){
   const m=S.res.meta,w=[];const un=Object.keys(m.unmapped);
   if(un.length)w.push('<b>'+un.length+' SDFX locator(s) are not in the locator table</b> ('+fmt(un.reduce((a,k)=>a+m.unmapped[k],0))+' rows) and appear under circle “UNMAPPED”: '+esc(un.slice(0,8).join(', '))+(un.length>8?' …':'')+'. Use “Replace locator table…” with an updated list.');
+  if(m.recoverySkipped)w.push(esc(m.recoverySkipped)+'.');
   if(m.badDate)w.push(fmt(m.badDate)+' row(s) had an unreadable Txn_Date and were skipped.');
   if(!S.types.size)w.push('No Txn_Type selected — tick at least one.');
   $('warnBox').innerHTML=w.map(x=>'<div class="warn">'+x+'</div>').join('');
@@ -682,7 +709,7 @@ $('tabs').addEventListener('click',e=>{
 /* ---- download ---- */
 $('dlBtn').onclick=function(){
   if(!S.pv)return;
-  const info={typesLabel:Array.from(S.types).join(', ')||'(none)',circlesLabel:S.circle||'(All)'};
+  const info={typesLabel:Array.from(S.types).join(', ')||'(none)',circlesLabel:S.circle||'(All)',recovery:S.res.recovery||[]};
   const bytes=Engine.buildXlsx(S.pv,info);
   const base=(S.file&&S.file.name||'issuance').replace(/\.(zip|xlsx)$/i,'');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
