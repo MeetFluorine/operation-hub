@@ -79,5 +79,16 @@ window.OPS_MODULES = [
     url: 'missing-stock.html',
     accent: 'orange',
     icon: 'stock'
+  },
+  {
+    id: 's2w-builder',
+    route: '/s2w-builder',
+    navLabel: 'S2W Builder',
+    title: 'S2W Sheet Builder',
+    description: 'Drop a serialNumberBulkUpload file to map locators to SFX store names and build the S2W Pendency / S2W raised sheet, then download it as Excel.',
+    quickAccessLabel: 'Open S2W Builder',
+    url: 's2w-builder.html',
+    accent: 'blue',
+    icon: 'stock'
   }
 ];
