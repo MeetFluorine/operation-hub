@@ -74,7 +74,7 @@ button{background:#4a6bef}button:disabled{background:#3a4863;color:#7d8aa3}butto
 <div class="kpis" id="kpis"></div>
 <div class="sc"><table id="sum"></table></div>
 <div class="row"><button class="alt" id="dl">Download Excel</button></div>
-<div class="note">The download keeps only Serial Number, Order Num and SS. Unmapped locators (if any) go on a separate Unmapped sheet.</div>
+<div class="note">The download keeps only Serial Number, Order Num and SS, plus a Pivot sheet (SS in rows, Order Num in columns, serial count in values — Pendency highlighted in 3 red tones). Unmapped locators (if any) go on a separate Unmapped sheet.</div>
 </div>
 <div class="card" id="unmapped-card" style="display:none"><h2>Unmapped locators — SS left blank, please confirm</h2><div class="sc"><table id="unmapped"></table></div></div>
 <div class="card"><h2>Preview (first 50 rows)</h2><div class="sc" style="max-height:420px"><table id="prev"></table></div></div>
@@ -97,12 +97,13 @@ button{background:#4a6bef}button:disabled{background:#3a4863;color:#7d8aa3}butto
 <li><b>Step 1 — SS:</b> each row's LocatorName is looked up in the locator mapping and the SFX store name is filled in as SS.</li>
 <li><b>Step 2 — Order Num:</b> OrderNum <b>NA</b> becomes <b>S2W Pendency</b>; any other value (a number or S2W Raised) becomes <b>S2W raised</b>.</li>
 <li>Locators missing from the mapping, or mapping to more than one store, are left blank and listed above — never guessed.</li>
+<li>The download also carries a <b>Pivot</b> sheet — SS in rows, Order Num in columns, serial count in values — with the Pendency column in 3 red tones, darkest for the biggest count. The store table above shows the same pivot on screen.</li>
 <li>Values wrapped as <b>="..."</b> in the export are unwrapped automatically. WMS_DUMMY placeholder serials are kept as-is.</li>
 </ol>
 </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -963,6 +964,7 @@ function buildSheet(text){
   if(si<0||oi<0||li<0)throw new Error('Need SerialNum, OrderNum and LocatorName columns in this file.');
   const out=[],perStore=new Map(),unmapped=new Map(),conflicts=new Map();
   let pend=0,raised=0;
+  const blank={pend:0,raised:0};
   for(let i=hi+1;i<rows.length;i++){
     const r=rows[i];
     if(!r||r.every(c=>String(c==null?'':c).trim()===''))continue;
@@ -972,9 +974,9 @@ function buildSheet(text){
     if(o==='S2W Pendency')pend++;else raised++;
     const stores=activeMap.get(loc);
     let ss='';
-    if(!stores){unmapped.set(loc,(unmapped.get(loc)||0)+1)}
+    if(!stores){unmapped.set(loc,(unmapped.get(loc)||0)+1);if(o==='S2W Pendency')blank.pend++;else blank.raised++}
     else if(stores.size===1){ss=[...stores][0]}
-    else{conflicts.set(loc,(conflicts.get(loc)||0)+1)}
+    else{conflicts.set(loc,(conflicts.get(loc)||0)+1);if(o==='S2W Pendency')blank.pend++;else blank.raised++}
     out.push([serial,o,ss]);
     if(ss){
       const e=perStore.get(ss)||{pend:0,raised:0};
@@ -982,7 +984,7 @@ function buildSheet(text){
       perStore.set(ss,e);
     }
   }
-  return {out,pend,raised,perStore,unmapped,conflicts};
+  return {out,pend,raised,perStore,unmapped,conflicts,blank};
 }
 
 $('go').addEventListener('click',async()=>{
@@ -1001,14 +1003,54 @@ $('go').addEventListener('click',async()=>{
   $('go').disabled=false;
 });
 
+/* ---------- pivot: SS in rows, Order Num in columns, serial count in values ---------- */
+function pivotRows(){
+  const rows=[...result.perStore.entries()].map(([ss,e])=>({ss,pend:e.pend,raised:e.raised,total:e.pend+e.raised}));
+  rows.sort((a,b)=>b.pend-a.pend||b.total-a.total);
+  if(result.blank.pend+result.blank.raised>0)rows.push({ss:'(unmapped)',pend:result.blank.pend,raised:result.blank.raised,total:result.blank.pend+result.blank.raised});
+  return rows;
+}
+function lerpColor(c1,c2,t){
+  const a=parseInt(c1.slice(1),16),b=parseInt(c2.slice(1),16);
+  const r=Math.round(((a>>16)&255)+(((b>>16)&255)-((a>>16)&255))*t);
+  const g=Math.round(((a>>8)&255)+(((b>>8)&255)-((a>>8)&255))*t);
+  const bl=Math.round((a&255)+((b&255)-(a&255))*t);
+  return '#'+((1<<24)+(r<<16)+(g<<8)+bl).toString(16).slice(1).toUpperCase();
+}
+/* 3-tone red scale for the Pendency column: light pink -> mid red -> dark red,
+   split at the median so the darkest cells are the biggest counts. */
+function redScale(values){
+  const vals=values.filter(v=>v>0).sort((a,b)=>a-b);
+  if(!vals.length)return ()=>null;
+  const min=vals[0],max=vals[vals.length-1];
+  const mid=vals.length%2?vals[(vals.length-1)/2]:(vals[vals.length/2-1]+vals[vals.length/2])/2;
+  const LOW='#FCE8E8',MID='#F87171',HIGH='#C62828';
+  return v=>{
+    let c;
+    if(max===min)c=MID;
+    else if(v<=mid)c=lerpColor(LOW,MID,mid===min?1:(v-min)/(mid-min));
+    else c=lerpColor(MID,HIGH,(v-mid)/(max-mid));
+    const n=parseInt(c.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+    const lum=0.299*r+0.587*g+0.114*b;
+    return {bg:c,fg:lum<140?'#FFFFFF':'#1B2433'};
+  };
+}
+
 function render(){
   const r=result;
   const un=r.unmapped.size+r.conflicts.size;
   const kp=(l,v,w)=>'<div class="k'+(w?' warn':'')+'"><span>'+l+'</span><b>'+fmt(v)+'</b></div>';
   $('kpis').innerHTML=kp('Rows scanned',r.out.length)+kp('S2W Pendency',r.pend)+kp('S2W raised',r.raised)+kp('Stores',r.perStore.size)+kp('Unmapped locators',un,un>0);
-  const stores=[...r.perStore.entries()].map(([ss,e])=>({ss,pend:e.pend,raised:e.raised,total:e.pend+e.raised})).sort((a,b)=>b.total-a.total);
+  const pr=pivotRows();
+  const scale=redScale(pr.map(x=>x.pend));
+  const rowHtml=s=>{
+    const st=s.pend>0?scale(s.pend):null;
+    const cell=st?'<td class="n" style="background:'+st.bg+';color:'+st.fg+';font-weight:600">'+fmt(s.pend)+'</td>':'<td class="n">'+fmt(s.pend)+'</td>';
+    return '<tr><td>'+esc(s.ss)+'</td>'+cell+'<td class="n">'+fmt(s.raised)+'</td><td class="n">'+fmt(s.total)+'</td></tr>';
+  };
   $('sum').innerHTML='<tr><th>SS (SFX store)</th><th class="n">S2W Pendency</th><th class="n">S2W raised</th><th class="n">Total</th></tr>'+
-    stores.map(s=>'<tr><td>'+esc(s.ss)+'</td><td class="n">'+fmt(s.pend)+'</td><td class="n">'+fmt(s.raised)+'</td><td class="n">'+fmt(s.total)+'</td></tr>').join('');
+    pr.map(rowHtml).join('')+
+    '<tr style="font-weight:700;background:#f1f4fb"><td>Grand Total</td><td class="n">'+fmt(r.pend)+'</td><td class="n">'+fmt(r.raised)+'</td><td class="n">'+fmt(r.out.length)+'</td></tr>';
   if(un>0){
     const rows=[];
     r.unmapped.forEach((n,loc)=>rows.push([loc,n,'Not in mapping — please confirm store']));
@@ -1026,27 +1068,55 @@ function render(){
   $('res').style.display='block';
 }
 
-function buildWorkbook(){
-  const wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.aoa_to_sheet([['Serial Number','Order Num','SS']].concat(result.out));
-  ws['!cols']=[{wch:22},{wch:16},{wch:26}];
-  if(ws['!ref'])ws['!autofilter']={ref:ws['!ref']};
-  ws['!freeze']={xSplit:0,ySplit:1};
-  XLSX.utils.book_append_sheet(wb,ws,'S2W');
+/* ExcelJS, not SheetJS: the download carries cell fills/fonts (the 3 red tones),
+   and SheetJS community drops cell styles on write. Same ExcelJS 4.4.0 the
+   PV Audit Tracker already uses. */
+async function buildWorkbook(){
+  const wb=new ExcelJS.Workbook();
+  wb.creator='Operations Hub';
+  // S2W sheet
+  const ws=wb.addWorksheet('S2W');
+  ws.columns=[{header:'Serial Number',width:22},{header:'Order Num',width:16},{header:'SS',width:26}];
+  ws.addRows(result.out);
+  ws.getRow(1).font={bold:true};
+  ws.autoFilter={from:'A1',to:'C1'};
+  ws.views=[{state:'frozen',xSplit:0,ySplit:1}];
+  // Pivot sheet: SS in rows, Order Num in columns, serial count in values.
+  // Pendency column in 3 red tones (light -> dark); zero counts stay blank,
+  // the way an Excel pivot leaves a combination with no records empty.
+  const pr=pivotRows();
+  const scale=redScale(pr.map(x=>x.pend));
+  const wp=wb.addWorksheet('Pivot');
+  wp.columns=[{header:'SS',width:26},{header:'S2W Pendency',width:16},{header:'S2W raised',width:16},{header:'Grand Total',width:14}];
+  wp.getRow(1).eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF1F4FB'}};c.font={bold:true,color:{argb:'FF1B2433'}}});
+  pr.forEach(x=>{
+    const row=wp.addRow([x.ss,x.pend>0?x.pend:null,x.raised>0?x.raised:null,x.total]);
+    if(x.pend>0){
+      const st=scale(x.pend),c=row.getCell(2);
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+st.bg.slice(1)}};
+      c.font={color:{argb:'FF'+st.fg.slice(1)},bold:true};
+    }
+    row.getCell(4).font={bold:true,color:{argb:'FF1B2433'}};
+  });
+  const gt=wp.addRow(['Grand Total',result.pend,result.raised,result.out.length]);
+  gt.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE8EEF9'}};c.font={bold:true,color:{argb:'FF1B2433'}}});
+  wp.autoFilter={from:'A1',to:'D1'};
+  wp.views=[{state:'frozen',xSplit:0,ySplit:1}];
+  // Unmapped sheet
   if(result.unmapped.size||result.conflicts.size){
-    const rows=[['LocatorName','Rows','Note']];
-    result.unmapped.forEach((n,loc)=>rows.push([loc,n,'SS not in mapping file - please confirm store']));
-    result.conflicts.forEach((n,loc)=>rows.push([loc,n,'Locator maps to more than one store - please confirm']));
-    const wu=XLSX.utils.aoa_to_sheet(rows);
-    wu['!cols']=[{wch:32},{wch:8},{wch:52}];
-    XLSX.utils.book_append_sheet(wb,wu,'Unmapped');
+    const wu=wb.addWorksheet('Unmapped');
+    wu.columns=[{header:'LocatorName',width:32},{header:'Rows',width:8},{header:'Note',width:52}];
+    wu.getRow(1).font={bold:true};
+    result.unmapped.forEach((n,loc)=>wu.addRow([loc,n,'SS not in mapping file - please confirm store']));
+    result.conflicts.forEach((n,loc)=>wu.addRow([loc,n,'Locator maps to more than one store - please confirm']));
   }
   return wb;
 }
 $('dl').addEventListener('click',async()=>{
   if(!result)return;
   try{
-    const buf=XLSX.write(buildWorkbook(),{bookType:'xlsx',type:'array'});
+    const wb=await buildWorkbook();
+    const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     let name=($('outname').value||'S2W').trim().replace(/[\\\/:*?"<>|]/g,'').replace(/\s+/g,' ')||'S2W';
     if(!/\.xlsx$/i.test(name))name+='.xlsx';
